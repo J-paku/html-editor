@@ -1,0 +1,11 @@
+/* 編集器の画面のスタイル。色はトークン(src/styles/tokens.css)だけを参照する */
+.page {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-text);
+}

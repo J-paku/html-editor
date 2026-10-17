@@ -1,0 +1,159 @@
+import { defineConfig, configDefaults } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
+import { globSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import path from 'node:path'
+import { fileURLToPath, URL } from 'node:url'
+import nextConfig from './next.config'
+
+// 画面(コンテナ)の props のうち、サーバでしか読めないもの(src/lib/content/read.ts は server-only)は、
+// I/O コンテナの単位フォルダ(__tests__/<unit>/)の container.fixture.ts がテストの前に node で組んで provide する。
+// コンテナを足すたびにここを直さずに済むよう、__tests__ の下から全部拾う。
+// 置けるのは単位フォルダの直下だけで、ほかに置くと npm run test:boundary
+// (scripts/check-test-boundary.mjs)が落とす(ここは全部拾うので、黙って走らせないため)。
+// 探す起点はこのファイルの場所にする(走らせた場所で拾う物が変わらないように)。順は名前で並べて、走るたびに揃える
+const ROOT = fileURLToPath(new URL('.', import.meta.url))
+const CONTAINER_FIXTURES = globSync('__tests__/**/container.fixture.ts', { cwd: ROOT })
+  .sort()
+  .map(file => fileURLToPath(new URL(file, import.meta.url)))
+// 1 つも拾えないと globalSetup が空のまま進み、テストの inject が undefined を受けて分かりにくい所で落ちる。
+// パターンや起点の誤りで黙って 0 個になるのを、設定を読む時点で止める
+if (CONTAINER_FIXTURES.length === 0) {
+  throw new Error(
+    `__tests__ の下に container.fixture.ts が 1 つも見つからない(探した起点: ${ROOT})`
+  )
+}
+
+// フックとコンテナはファイルごとに、文・分岐・関数・行のすべてを100%にする(AGENTS.md の不変ルール4)。
+// 対象は src の下の hooks フォルダの全部(src/hooks/ を含む)と、src の下の container.tsx の全部(I/O コンテナも状態コンテナも)。
+// 一覧を手で並べず設定を読むたびに拾うので、新しいフック・コンテナは置いた時点で対象になる。表示部品は下の全体の床にだけ入る。
+// Vitest の thresholds の perFile は glob ごとには分けられず、全体の床までファイル別にしてしまう
+// (node_modules/vitest の coverage の checkThresholds が thresholds.perFile だけを見る。J-paku.github.io が 4.1.10 で確認)。
+// そこでファイルのパスを1つずつ glob として並べてファイル別にする(単体の vitest.config.ts の COVERAGE_TARGETS と同じ形)。
+// パスは起点からの '/' 区切り。Vitest は glob を root からの相対パスに当てる(root は走らせた場所で、npm run の入口ではこのファイルの場所)
+const HOOK_FILES = globSync('src/**/hooks/**/*.{ts,tsx}', { cwd: ROOT })
+  .map(file => file.split(path.sep).join('/'))
+  .sort()
+// フックはまだ1つも無い(編集器の機能を作る前の土台)。J-paku.github.io はフックが0個なら設定を読む時点で落とすが、
+// ここでは0個を許す。最初のフックを置いたら、0個を落とす検査に戻す(パターンや起点の誤りで門が黙って空になるのを止めるため)
+const CONTAINER_FILES = globSync('src/**/container.tsx', { cwd: ROOT })
+  .map(file => file.split(path.sep).join('/'))
+  .sort()
+if (CONTAINER_FILES.length === 0) {
+  throw new Error(`src の下に container.tsx が 1 つも見つからない(探した起点: ${ROOT})`)
+}
+const PER_FILE_TARGETS = [...HOOK_FILES, ...CONTAINER_FILES]
+// 1ファイルを文・分岐・関数・行のすべてで100%に固定するしきい値(単体の vitest.config.ts の FULL_COVERAGE と同じ)
+const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 100 }
+
+// 統合テストの名前(test.include)と、カバレッジで測る物・外す物。下の検査と test・coverage の設定が同じ一覧を使う
+const INTEGRATION_TESTS = ['__tests__/**/*.integration.test.tsx']
+const COVERAGE_INCLUDE = ['src/**/*.{ts,tsx}']
+const COVERAGE_EXCLUDE = [
+  'src/**/*.test.{ts,tsx}',
+  'src/**/*.fixture.ts',
+  'src/**/*.test-helper.ts',
+]
+// フックとコンテナが1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
+// Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)は、ファイル別100%の門を素通りする。
+// 当て方は Vitest と同じにする: coverage の include に当たり、exclude と test.include(Vitest が exclude へ足す)に当たらない物だけを測る。
+// Vitest は picomatch を contains・dot 付きで絶対パスへ当てる(node_modules/vitest の coverage の isIncluded。J-paku.github.io が 4.1.10 で確認)。
+// contains は前後を固定しないので、'src/**/*.fixture.ts' は x.fixture.tsx にも当たる(node:path の matchesGlob では拾えない)。
+// picomatch は Vitest の依存(型は入っていない)なので createRequire で読み、使う形だけを型に書く
+type Matcher = (
+  glob: string[],
+  options: { contains: boolean; dot: boolean; ignore: string[] }
+) => (file: string) => boolean
+const picomatch: Matcher = createRequire(import.meta.url)('picomatch')
+const isCovered = picomatch(COVERAGE_INCLUDE, {
+  contains: true,
+  dot: true,
+  ignore: [...COVERAGE_EXCLUDE, ...INTEGRATION_TESTS],
+})
+const isUncovered = (file: string) => !isCovered(path.join(ROOT, file).split(path.sep).join('/'))
+const UNCOVERED_HOOKS = HOOK_FILES.filter(isUncovered)
+if (UNCOVERED_HOOKS.length > 0) {
+  throw new Error(
+    `カバレッジの include から外れるか exclude に掛かるフックがある(ファイル別100%の門を黙って素通りする): ${UNCOVERED_HOOKS.join(', ')}。` +
+      'フックの名前を exclude に掛からない名前にするか、テストの部品なら hooks フォルダの外へ移す'
+  )
+}
+const UNCOVERED_CONTAINERS = CONTAINER_FILES.filter(isUncovered)
+if (UNCOVERED_CONTAINERS.length > 0) {
+  throw new Error(
+    `カバレッジの include から外れるか exclude に掛かるコンテナがある(ファイル別100%の門を黙って素通りする): ${UNCOVERED_CONTAINERS.join(', ')}。` +
+      'コンテナ(container.tsx)を exclude に掛からない場所へ置く'
+  )
+}
+
+// 統合テスト(Vitest Browser Mode)の設定。画面単位のコンポーネントを実際の Chromium で、ビルド無しで描く。
+// 単体の vitest.config.ts と別のファイルにするのは、変異テスト(stryker.config.mjs)が vitest.config.ts を読むため。
+// Stryker の Browser Mode 対応は未実測なので、変異テストは node の単体だけで回す。
+// 単体の設定は __tests__ と *.integration.test.{ts,tsx} を exclude で外し、ここはリポジトリ直下の __tests__ の *.integration.test.tsx だけを拾う。
+// ほかの場所・名前の統合テスト(src の下・*.integration.test.ts・*.browser.test.*)はどちらの設定にも拾われないが、
+// npm run test:boundary(scripts/check-test-boundary.mjs)が落とすので、走らないまま黙って残ることは無い
+export default defineConfig({
+  // next/link などは Next のビルドが process.env.X を値へ置き換える前提で書かれていて、ブラウザには process が無い。
+  // ここで process.env の中身を決める。中身は Next のビルドが next.config から入れる値のうち、リンクの href に表れるもの:
+  //   __NEXT_TRAILING_SLASH: next.config の trailingSlash。無いと next/link が href の末尾のスラッシュを落とす
+  //   __NEXT_ROUTER_BASEPATH: next.config の basePath。無いと next/link が href の先頭の /html-editor を落とす
+  // どちらも配信物と違う href になるのを防ぐ(先に束ねた依存の中の process.env.X も、Vite がブラウザで最初に読む
+  // /@vite/env が define の値を globalThis.process.env へ書くので読める。J-paku.github.io の 2026-10-14 の実測)
+  define: {
+    'process.env': JSON.stringify({
+      __NEXT_TRAILING_SLASH: nextConfig.trailingSlash,
+      __NEXT_ROUTER_BASEPATH: nextConfig.basePath,
+    }),
+  },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@content': fileURLToPath(new URL('./content', import.meta.url)),
+      // 下の globalSetup が node で content を読む(src/lib/content/read.ts)。server-only は react-server 以外の
+      // 条件では import しただけで投げるので、中身の無い版(パッケージ同梱の empty.js)へ向ける。単体テストの vi.mock と同じ扱い
+      'server-only': fileURLToPath(new URL('./node_modules/server-only/empty.js', import.meta.url)),
+    },
+  },
+  test: {
+    globals: true,
+    include: INTEGRATION_TESTS,
+    exclude: [...configDefaults.exclude, '**/.claude/**', 'tests/**'],
+    // 上で拾った container.fixture.ts を、テストの前に node で走らせる
+    globalSetup: CONTAINER_FIXTURES,
+    // 落ちた時の画面の写しは、既定だとテストの隣(__tests__ の中)とリポジトリ直下に出る。git が無視する test-results/ へ寄せる
+    attachmentsDir: 'test-results/vitest-attachments',
+    browser: {
+      enabled: true,
+      // 既定は process.env.CI なので、手元(WSL)で窓を開こうとしないよう明示する
+      headless: true,
+      // TZ=UTC(package.json の scripts と vitest.config.ts の env)は node のプロセスにしか効かない。
+      // ブラウザの時間帯は context で別に固定し、機器の時間帯に結果を左右させない
+      provider: playwright({ contextOptions: { timezoneId: 'UTC' } }),
+      instances: [{ browser: 'chromium' }],
+      screenshotDirectory: 'test-results/vitest-screenshots',
+    },
+    // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。
+    // フックとコンテナは全部をファイル別100%で固める(上の HOOK_FILES・CONTAINER_FILES)。統合テストで構造上届かない行(E2E だけが作れる場合)だけを、
+    // その行を見ている E2E を名指しする注釈 `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` で外し、
+    // 名指しした E2E が実在するかを npm run test:boundary(scripts/check-coverage-ignores.mjs)が確かめる
+    coverage: {
+      provider: 'v8',
+      enabled: false,
+      include: COVERAGE_INCLUDE,
+      exclude: COVERAGE_EXCLUDE,
+      reporter: ['text-summary'],
+      reportsDirectory: 'coverage/integration',
+      // 2026-10-17の実測(statements 20%・branches 100%・functions 20%・lines 22.22%)から2pt引いて切り捨てた値。
+      // 測る対象は src の全部で、統合テストが描かない経路の定義・ローダー・src/lib/(単体の門で100%に固めている)も分母に入るので低く見える。
+      // 目標値ではなく、統合テストを消したり使われないコードを増やしたりしたときに落とすための床。コンテナとフックが増えたら実測から上げる
+      thresholds: {
+        statements: 18,
+        branches: 98,
+        functions: 18,
+        lines: 20,
+        // フックとコンテナのファイル別100%(一覧は上の HOOK_FILES・CONTAINER_FILES)
+        ...Object.fromEntries(PER_FILE_TARGETS.map(file => [file, FULL_COVERAGE])),
+      },
+    },
+  },
+})

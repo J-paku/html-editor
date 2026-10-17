@@ -1,0 +1,10 @@
+/*
+ * デザイントークン — 色の定義はこのファイルだけに置く(AGENTS.mdの不変ルール5)。
+ * ほかのCSSはvar(--color-...)で参照し、色のリテラル(#rrggbb・rgb()・hsl())を書かない。
+ * 半透明が要るときはcolor-mix(in srgb, var(--color-...) 97%, transparent)の形でトークンを薄める。
+ * 今は土台だけなので、地と文字の2色だけを置く。
+ */
+:root {
+  --color-surface: #ffffff;
+  --color-text: #1f1f1f;
+}

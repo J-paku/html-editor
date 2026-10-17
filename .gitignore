@@ -1,0 +1,29 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+.next
+out
+test-results
+playwright-report
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
+
+.env
+.claude/
+*.tsbuildinfo
+
+# npm run test:coverage と npm run test:integration -- --coverage が書き出す報告。生成物なのでソースには入れない
+/coverage/
+
+# npm run test:mutation(Stryker)の作業用の写しと報告。生成物なのでソースには入れない
+/.stryker-tmp/
+/reports/

@@ -1,0 +1,54 @@
+// 変異テスト(Stryker)の設定。npm run test:mutation で走り、CI では test:integration の後に走る。
+// 既定は前回の結果を使い、変わった変異体だけを走らせる(incremental。下の注釈)。
+// 全部を走らせるのは npm run test:mutation -- --force
+//
+// 純粋モジュールと src/lib/ は人がコードを読んで確かめない。その代わりに、元のコードを1か所ずつ壊した変異体
+// (演算子・比較・定数・条件の入れ替え)を、テストが1体残らず見抜けることを機械に確かめさせる。
+// 生き残った変異体は「テストが見ていない振る舞い」なので、1体でも残れば落とす(しきい値がすべて100の理由)。
+// しきい値を下げる・対象から外すときは、先に利用者の決定を取る(AGENTS.md の不変ルール4)
+//
+// 対象は純粋モジュールと lib の置き場(src/lib/・src/utils/・コンポーネント専用の utils/)の全部で、一覧を手で並べない。
+// 正本は scripts/gate-targets.mjs の MUTATION_TARGETS で、設定を読むたびに src をたどって選ぶ。新しいファイルは
+// 置いた時点で対象になる。名指しで外したパスが実在しないと、gate-targets.mjs を読み込む時点で落ちる
+//
+// モジュールを読む時に投げる変異体(トップレベルの検査や定数の組み立てを壊したもの)は、テストファイルの
+// import が失敗してテストが1本も走らず(Vitest の収集エラー)、Stryker はそれを Survived と数える(J-paku.github.io の実測)。
+// そういうモジュールのテストは、テストの中で vi.resetModules() してから動的に import し(await import(...))、
+// 読み込みの失敗を個々のテストの失敗として受ける
+//
+// TZ=UTC は package.json の scripts 側で付ける(vitest.config.ts と同じく、時刻の結果を機器に左右させない)
+import { MUTATION_TARGETS } from './scripts/gate-targets.mjs'
+
+/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
+const config = {
+  testRunner: 'vitest',
+  vitest: { configFile: 'vitest.config.ts' },
+  // 変異体ごとに、その箇所を通るテストだけを走らせる
+  coverageAnalysis: 'perTest',
+  mutate: MUTATION_TARGETS,
+  thresholds: { high: 100, low: 100, break: 100 },
+  reporters: ['clear-text', 'progress', 'html'],
+  htmlReporter: { fileName: 'reports/mutation/index.html' },
+  // 前回の結果をファイルに残し、次の実行では変わった変異体だけを走らせる。CI はこのファイルを
+  // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。
+  // 穴: 比べるのは mutate のファイルとテストファイルだけで、依存パッケージ・設定・mutate のファイルが
+  // import する別のファイルが変わっても気付かず、前回の結果を使い回す。
+  // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI のキャッシュの鍵には
+  // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる
+  incremental: true,
+  incrementalFile: 'reports/stryker-incremental.json',
+  tempDirName: '.stryker-tmp',
+  // Stryker は作業用の写しを作るとき .gitignore を読まない。手元にしか無い大きなフォルダ
+  // (.claude/ の作業ツリー・ビルド成果物・報告)まで写さないよう、ここで外す
+  ignorePatterns: [
+    '/.claude',
+    '/.next',
+    '/out',
+    '/coverage',
+    '/test-results',
+    '/playwright-report',
+    '/reports',
+  ],
+}
+
+export default config

@@ -1,0 +1,96 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  # PRでも同じ検査を走らせる。配信はしない
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 最上位は読むだけ。buildジョブはマージ前のPRのコードや、依存の更新PRが入れる新しいパッケージのnpm ciを走らせるので、配信の権限を持たせない
+permissions:
+  contents: read
+
+concurrency:
+  # PRはPR番号ごとの組にして、mainの配信と互いに取り消し合わないようにする
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'pages' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # 前段が落ちたら後段を走らせる意味が無いので直列
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      # カバレッジが床を下回ったらここで止まる(基準の正本はvitest.config.tsのcoverage.thresholds)
+      - run: npm run test:coverage
+      - run: npm run test:boundary
+      # ブラウザ本体は lock ファイルの版ごとに使い回す。OS 側の依存はキャッシュできないので hit でも入れる。
+      # 統合テスト(Vitest Browser Mode)も Chromium を使うので、その前に入れる
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      # 統合テスト。ビルド無しで実ブラウザに画面を描く。カバレッジが床を下回ったらここで止まる(基準の正本はvitest.integration.config.tsのcoverage.thresholds)
+      - run: npm run test:integration -- --coverage
+      # 変異テストは前回の結果(stryker.config.mjs の incrementalFile)を引き継ぎ、変わった変異体だけを走らせる。
+      # 鍵に依存・設定の指紋を入れ、どれかが変わると引き継がずに全部を走らせる
+      # キャッシュがまだ無い最初の push では、引き継ぐ結果が無いので全部が走る
+      - name: Restore Stryker incremental result
+        uses: actions/cache/restore@v6
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
+          restore-keys: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-
+      - run: npm run test:mutation
+      # 変異テストが落ちても結果は残して次の push を速くする。取り消された実行は保存しない
+      - name: Save Stryker incremental result
+        if: ${{ !cancelled() && hashFiles('reports/stryker-incremental.json') != '' }}
+        uses: actions/cache/save@v6
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
+      # next build と、配信物が /html-editor/_next/ の下を参照しているかの検査(scripts/verify-export.mjs)
+      - run: npm run build
+      # out/ を /html-editor/ の下で配って開く(scripts/serve-out.mjs。playwright.config.ts の webServer)
+      - run: npm run test:e2e
+      # PRでは配信しないので、成果物の受け渡しも飛ばす
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    # PRでは配信しない
+    if: github.event_name != 'pull_request'
+    # 配信の権限はこのジョブにだけ渡す。マージ前のPRのコードに配信の権限を渡さない
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # 配信の準備もPagesの権限が要るので、buildジョブではなくここで行う(PRではジョブごと飛ぶので条件は付けない)
+      - uses: actions/configure-pages@v6
+      - id: deployment
+        uses: actions/deploy-pages@v5

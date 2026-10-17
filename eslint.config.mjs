@@ -1,0 +1,157 @@
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
+import nextTypescript from 'eslint-config-next/typescript'
+import hookOnlyInContainer from './scripts/eslint-rules/hook-only-in-container.mjs'
+
+// バレル禁止(全ファイル共通)。レイヤー override でも rule 全体が置き換わるため毎回同梱する
+const BARREL_PATHS = [
+  {
+    name: '.',
+    message: "同一フォルダのバレルインポートは './index' を使用してください",
+  },
+  {
+    name: '..',
+    message: "親フォルダの暗黙バレルインポートは禁止。'@/<絶対パス>' を使用してください",
+  },
+]
+
+// content の実データを指す指定子。型定義 content/types は対象外
+const CONTENT_DATA_REGEX = '^@content/(?!types/)'
+
+// レイヤー境界 rule を組み立てる。group は禁止する import 指定子の glob、
+// gateContent=true なら content 実データの直接 import も併せて禁止する
+const layerRule = (group, message, gateContent = false) => {
+  const patterns = []
+  if (group.length > 0) patterns.push({ group, message })
+  if (gateContent) patterns.push({ regex: CONTENT_DATA_REGEX, message })
+  return ['error', { paths: BARREL_PATHS, patterns }]
+}
+
+// このリポジトリの規則(scripts/eslint-rules/)をまとめたプラグイン。規則は layer/<名前> で指す
+const layerPlugin = { rules: { 'hook-only-in-container': hookOnlyInContainer } }
+
+const eslintConfig = [
+  {
+    // ビルド成果物・生成ファイルを除外
+    ignores: ['.next/**', 'out/**', 'dist/**', 'node_modules/**', '.claude/**', 'next-env.d.ts'],
+  },
+  // parser・browser globals・@typescript-eslint plugin と recommended は 16 の next 設定が同梱するため個別指定しない
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // 静的エクスポート(images.unoptimized)のため next/image は最適化されず利点なし。生 img を許可
+      '@next/next/no-img-element': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+      // バレルインポート禁止: from '.' → from './index' を強制
+      'no-restricted-imports': ['error', { paths: BARREL_PATHS }],
+      // effect 本文での同期 setState・レンダー中の ref 読み書き・依存の食い違う手動メモ化を持ち込まないよう error で止める
+      // (避けられない箇所は理由付きの eslint-disable-next-line で明示する)
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/refs': 'error',
+      'react-hooks/preserve-manual-memoization': 'error',
+    },
+  },
+  // ---- レイヤー境界(下位→上位の逆参照を lint で落とす) ----
+  // 許可方向: utils ← lib ← hooks ← components ← app / content は src を参照しない
+  // 型定義(content/types)は全レイヤーから参照可。実データは src/lib/content だけが読む
+  {
+    files: ['src/utils/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        ['@/lib/**', '@/hooks/**', '@/components/**', '@/app/**'],
+        'utils は純粋関数のみ。lib・hooks・components・content(型を除く) を import しない',
+        true
+      ),
+    },
+  },
+  {
+    // content の入口は src/lib/content の一箇所だけ(不変ルール1の機械化)。他の lib は @content 直接参照禁止
+    files: ['src/lib/**'],
+    ignores: ['src/lib/content/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        ['@/hooks/**', '@/components/**', '@/app/**'],
+        "lib は hooks・components・app を import しない。content は '@/lib/content/read' 経由",
+        true
+      ),
+    },
+  },
+  {
+    files: ['src/lib/content/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        ['@/hooks/**', '@/components/**', '@/app/**'],
+        'lib は hooks・components・app を import しない'
+      ),
+    },
+  },
+  {
+    files: ['src/hooks/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        ['@/components/**', '@/app/**'],
+        'hooks は components・app・content を import しない',
+        true
+      ),
+    },
+  },
+  {
+    files: ['src/components/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        ['@/app/**'],
+        'components は app・content を import しない',
+        true
+      ),
+    },
+  },
+  {
+    files: ['src/app/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        [],
+        "app は content を直接 import しない。'@/lib/content/read' 経由で読む",
+        true
+      ),
+    },
+  },
+  {
+    files: ['content/**'],
+    rules: {
+      'no-restricted-imports': layerRule(
+        ['@/utils/**', '@/lib/**', '@/hooks/**', '@/components/**', '@/app/**'],
+        'content はデータ。src を import しない(型は content/types に置く)'
+      ),
+    },
+  },
+  // ---- フックを呼んでよい所(AGENTS.md の不変ルール2) ----
+  // フックを1つでも呼ぶ部品はコンテナ(container.tsx)、1つも呼ばない部品は表示部品。src でフックを呼べるのは、
+  // コンテナ・hooks/ の中の use-*.ts(x)(src/hooks/ も)・テストの側だけ。
+  // 掛け方の自己検査と、注釈で黙らせた呼び出しの数え上げは scripts/check-hook-rule.mjs(npm run test:boundary)
+  {
+    plugins: { layer: layerPlugin },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      '**/container.tsx',
+      'src/**/hooks/**/use-*.{ts,tsx}',
+      '**/*.test.{ts,tsx}',
+      '**/*.fixture.ts',
+      '**/*.test-helper.ts',
+    ],
+    rules: {
+      'layer/hook-only-in-container': 'error',
+    },
+  },
+]
+
+export default eslintConfig

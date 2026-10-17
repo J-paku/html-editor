@@ -1,0 +1,15 @@
+/* 全画面に掛かる基底のスタイル。色はトークン(src/styles/tokens.css)だけを参照する */
+@import '../styles/tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: system-ui, sans-serif;
+}

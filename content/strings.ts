@@ -21,6 +21,19 @@ export const strings: Strings = {
     unsupportedDescription:
       'このブラウザは、フォルダを開いて元のファイルに保存する機能に対応していません。パソコンのChromeかEdgeをご利用ください。',
   },
+  toolbar: {
+    label: '編集の操作',
+    open: '開く',
+    save: '保存',
+    undo: '元に戻す',
+    redo: 'やり直す',
+    present: '全画面で表示',
+    unsaved: '未保存の変更あり',
+    modeLabel: 'プレビューのモード',
+    editMode: '編集',
+    interactMode: '操作',
+    modeUnavailable: 'モード切り替えは今後対応します',
+  },
   fileList: {
     title: 'ファイル',
     empty: 'ファイルがありません',

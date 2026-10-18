@@ -6,6 +6,7 @@ export type Strings = {
   title: string
   editorLayout: EditorLayoutStrings
   startScreen: StartScreenStrings
+  toolbar: ToolbarStrings
   fileList: FileListStrings
 }
 
@@ -23,6 +24,20 @@ export type StartScreenStrings = {
   localNote: string
   unsupportedTitle: string
   unsupportedDescription: string
+}
+
+export type ToolbarStrings = {
+  label: string
+  open: string
+  save: string
+  undo: string
+  redo: string
+  present: string
+  unsaved: string
+  modeLabel: string
+  editMode: string
+  interactMode: string
+  modeUnavailable: string
 }
 
 export type FileListStrings = {

@@ -1,0 +1,42 @@
+/* 画面の上(問いの窓よりも上)に浮かぶ失敗の知らせ。色はトークンだけ */
+.notice {
+  position: fixed;
+  z-index: 200;
+  bottom: 1rem;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+  border: 1px solid var(--color-danger);
+  border-left-width: 3px;
+  border-radius: 0.375rem;
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  box-shadow: 0 0.75rem 2rem color-mix(in srgb, var(--color-shadow) 20%, transparent);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  transform: translateX(-50%);
+}
+
+.message {
+  margin: 0;
+}
+
+.dismiss {
+  flex-shrink: 0;
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-danger);
+  border-radius: 0.25rem;
+  background: var(--color-surface-raised);
+  color: var(--color-danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dismiss:hover {
+  background: var(--color-surface-hover);
+}

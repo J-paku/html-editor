@@ -8,6 +8,7 @@ export type Strings = {
   startScreen: StartScreenStrings
   toolbar: ToolbarStrings
   fileList: FileListStrings
+  notice: NoticeStrings
 }
 
 export type EditorLayoutStrings = {
@@ -45,4 +46,24 @@ export type FileListStrings = {
   empty: string
   unsaved: string
   notEditable: string
+}
+
+// エディタが知らせる失敗ごとの、1つの短い知らせ
+export type NoticeMessages = {
+  openFailed: string
+  noTextFile: string
+  readFailed: string
+  writeFailed: string
+  permissionDenied: string
+  draftFailed: string
+  // 一時保管できずに、開き直す(最初の画面へ戻る)のをやめたとき。理由と、どうすれば閉じられるか
+  closeBlocked: string
+  presentFailed: string
+}
+
+export type NoticeKind = keyof NoticeMessages
+
+export type NoticeStrings = {
+  dismiss: string
+  messages: NoticeMessages
 }

@@ -40,4 +40,20 @@ export const strings: Strings = {
     unsaved: '未保存',
     notEditable: '編集できないファイル',
   },
+  notice: {
+    dismiss: '閉じる',
+    messages: {
+      openFailed: '開けませんでした。もう一度お試しください。',
+      noTextFile:
+        '編集できるファイルがありません。HTMLやCSSのファイルを含むフォルダを開いてください。',
+      readFailed: 'ディスクの内容を読み込めませんでした。',
+      writeFailed: '保存できませんでした。',
+      permissionDenied:
+        'ファイルに書き込む許可が得られませんでした。保存するには許可してください。',
+      draftFailed: '編集内容を一時保管できませんでした。',
+      closeBlocked:
+        '保存していない変更を一時保管できなかったので、閉じずにそのままにしました。保存してから、もう一度「開く」を押してください。',
+      presentFailed: '全画面で表示できませんでした。',
+    },
+  },
 }

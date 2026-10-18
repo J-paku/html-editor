@@ -26,6 +26,7 @@ import {
   textAt,
   typeAtEnd,
   unsavedMark,
+  writeAt,
 } from './editor-page.test-helper'
 
 let folder: FileSystemDirectoryHandle
@@ -398,5 +399,54 @@ describe('offering drafts back', () => {
     await expect.element(codeBox()).toHaveTextContent(/^<p>a<\/p>$/)
     expect(unsavedMark().query()).toBeNull()
     await expect.poll(() => draftTexts('folder:site')).toEqual({})
+  })
+
+  it('warns when the file changed on disk after its draft was kept', async () => {
+    await editAndKeep()
+    await writeAt(folder, 'index.html', '<p>changed outside</p>')
+
+    await reopen()
+
+    await expect
+      .element(restoreDialog().getByText(strings.restoreDialog.diskChangedWarning))
+      .toBeVisible()
+  })
+
+  it('saving a restored draft whose file changed on disk asks what to do, and writes nothing yet', async () => {
+    await editAndKeep()
+    await writeAt(folder, 'index.html', '<p>changed outside</p>')
+    await reopen()
+    await userEvent.click(button(strings.restoreDialog.restore))
+
+    await userEvent.click(button(strings.toolbar.save))
+
+    await expect.element(dialog(strings.conflictDialog.title)).toBeVisible()
+    expect(await textAt(folder, 'index.html')).toBe('<p>changed outside</p>')
+  })
+
+  it('after restoring a draft made before the file changed on disk and undoing it, editing and saving writes without asking', async () => {
+    await editAndKeep()
+    await writeAt(folder, 'index.html', '<p>changed outside</p>')
+    await reopen()
+    await userEvent.click(button(strings.restoreDialog.restore))
+    await userEvent.click(button(strings.toolbar.undo))
+    await expect.element(codeBox()).toHaveTextContent(/^<p>changed outside<\/p>$/)
+
+    await typeAtEnd('Y')
+    await userEvent.click(button(strings.toolbar.save))
+
+    await expect.poll(() => textAt(folder, 'index.html')).toBe('<p>changed outside</p>Y')
+    expect(dialog(strings.conflictDialog.title).query()).toBeNull()
+  })
+
+  it('saving a restored draft whose file is unchanged on disk writes it', async () => {
+    await editAndKeep()
+    await reopen()
+    await userEvent.click(button(strings.restoreDialog.restore))
+
+    await userEvent.click(button(strings.toolbar.save))
+
+    await expect.poll(() => textAt(folder, 'index.html')).toBe('<p>a</p>X')
+    expect(dialog(strings.conflictDialog.title).query()).toBeNull()
   })
 })

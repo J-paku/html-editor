@@ -1,2 +1,3 @@
-# 承認済みの設計文書の写し。原本(J-paku.github.io の .claude/specs/2026-10-17-ai-html-editor-design.md)と同じ字面を保つため整形しない
+# 承認済みの設計文書。J-paku.github.io の .claude/specs/2026-10-17-ai-html-editor-design.md から写したが、今は原本から分かれてこのリポジトリの正本になっている。
+# 承認された時の書き方(表の列を空白で揃えない)を保つため整形しない。整形すると3つの表の22行が列揃えで書き換わる(2026-10-18 の実測)
 docs/design.md

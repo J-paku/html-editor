@@ -1,11 +1,19 @@
 /* 編集器の画面のスタイル。色はトークン(src/styles/tokens.css)だけを参照する */
 .page {
-  min-height: 100vh;
-  padding: 24px;
+  min-height: 100dvh;
 }
 
-.title {
+/* プレビューを囲む要素。「全画面で表示」が全画面に見せるのはこの要素なので、プレビューの場所いっぱいに広がり、
+   そこに背景を持つ */
+.preview {
+  width: 100%;
+  height: 100%;
+  background: var(--color-surface-raised);
+}
+
+.noPreview {
   margin: 0;
-  font-size: 1.5rem;
-  color: var(--color-text);
+  padding: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }

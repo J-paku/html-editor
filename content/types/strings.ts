@@ -8,6 +8,7 @@ export type Strings = {
   startScreen: StartScreenStrings
   toolbar: ToolbarStrings
   fileList: FileListStrings
+  conflictDialog: ConflictDialogStrings
   editor: EditorStrings
   notice: NoticeStrings
 }
@@ -47,6 +48,15 @@ export type FileListStrings = {
   empty: string
   unsaved: string
   notEditable: string
+}
+
+export type ConflictDialogStrings = {
+  title: string
+  description: string
+  overwrite: string
+  loadDisk: string
+  discardWarning: string
+  cancel: string
 }
 
 // 編集器の画面の中の名前のうち、どの表示部品のものでもないもの

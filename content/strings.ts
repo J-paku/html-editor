@@ -40,6 +40,14 @@ export const strings: Strings = {
     unsaved: '未保存',
     notEditable: '編集できないファイル',
   },
+  conflictDialog: {
+    title: '元のファイルが変更されています',
+    description: '開いた後に、ディスク上のファイルが変更されました。保存方法を選んでください。',
+    overwrite: '自分の内容で上書き',
+    loadDisk: 'ディスクの内容を読み込む',
+    discardWarning: 'ディスクの内容を読み込むと、今の未保存の変更は失われます。',
+    cancel: 'キャンセル',
+  },
   editor: {
     codeLabel: 'コードの編集欄',
     previewTitle: 'HTMLのプレビュー',

@@ -15,6 +15,7 @@ import StartScreen from './components/StartScreen'
 import Toolbar from './components/Toolbar'
 import { useDialogFocus } from './hooks/use-dialog-focus'
 import { useFileAccessSupport } from './hooks/use-file-access'
+import { useLeaveWarning } from './hooks/use-leave-warning'
 import { useNotice } from './hooks/use-notice'
 import { useOpenProject } from './hooks/use-open-project'
 import { usePresent } from './hooks/use-present'
@@ -40,6 +41,7 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
   const isAsking = conflictPath !== null
   const dialogLayer = useDialogFocus(isAsking)
   const hasUnsavedChanges = isSessionDirty(session)
+  useLeaveWarning(hasUnsavedChanges)
   const srcdoc = usePreviewSrcdoc(session)
   const { target: previewBox, present } = usePresent(report)
   const conflictTitleId = useId()

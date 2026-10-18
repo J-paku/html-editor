@@ -51,14 +51,17 @@ jobs:
       # 統合テスト。ビルド無しで実ブラウザに画面を描く。カバレッジが床を下回ったらここで止まる(基準の正本はvitest.integration.config.tsのcoverage.thresholds)
       - run: npm run test:integration -- --coverage
       # 変異テストは前回の結果(stryker.config.mjs の incrementalFile)を引き継ぎ、変わった変異体だけを走らせる。
-      # 鍵に依存・設定の指紋を入れ、どれかが変わると引き継がずに全部を走らせる
+      # 鍵に依存・設定の指紋を入れず、いつも最も新しく保存された結果を戻す。依存・設定が変わっても全部は走らせない
+      # (全部を測り直すのは手で走らせる --force。AGENTS.md の「テスト(4層)」)。
+      # 指紋を入れていた頃の名前(stryker-incremental-<指紋>-<sha>)の結果も、同じ接頭辞なので restore-keys で戻る
       # キャッシュがまだ無い最初の push では、引き継ぐ結果が無いので全部が走る
       - name: Restore Stryker incremental result
         uses: actions/cache/restore@v6
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
-          restore-keys: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-
+          key: stryker-incremental-${{ github.sha }}
+          restore-keys: stryker-incremental-
+      # 入口は scripts/run-mutation.mjs。時間切れ(Timeout)の変異体が1体でもあれば落ちる
       - run: npm run test:mutation
       # 変異テストが落ちても結果は残して次の push を速くする。取り消された実行は保存しない
       - name: Save Stryker incremental result
@@ -66,7 +69,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
+          key: stryker-incremental-${{ github.sha }}
       # next build と、配信物が /html-editor/_next/ の下を参照しているかの検査(scripts/verify-export.mjs)
       - run: npm run build
       # out/ を /html-editor/ の下で配って開く(scripts/serve-out.mjs。playwright.config.ts の webServer)

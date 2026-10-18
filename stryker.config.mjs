@@ -5,6 +5,9 @@
 // 純粋モジュールと src/lib/ は人がコードを読んで確かめない。その代わりに、元のコードを1か所ずつ壊した変異体
 // (演算子・比較・定数・条件の入れ替え)を、テストが1体残らず見抜けることを機械に確かめさせる。
 // 生き残った変異体は「テストが見ていない振る舞い」なので、1体でも残れば落とす(しきい値がすべて100の理由)。
+// 時間切れ(Timeout)の変異体も1体でもあれば落とす。Stryker は時間切れを落とした数に入れるのでしきい値では落ちず、
+// npm run test:mutation の入口の scripts/run-mutation.mjs が落とす(AGENTS.md の「テスト(4層)」)。
+// 待ち時間(timeoutMS・timeoutFactor)は既定のままにし、延ばさない。変異で止まらなくなるループはコードの形を直す。
 // しきい値を下げる・対象から外すときは、先に利用者の決定を取る(AGENTS.md の不変ルール4)
 //
 // 対象は純粋モジュールと lib の置き場(src/lib/・src/utils/・コンポーネント専用の utils/)の全部で、一覧を手で並べない。
@@ -30,11 +33,17 @@ const config = {
   reporters: ['clear-text', 'progress', 'html'],
   htmlReporter: { fileName: 'reports/mutation/index.html' },
   // 前回の結果をファイルに残し、次の実行では変わった変異体だけを走らせる。CI はこのファイルを
-  // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。
+  // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。結果ファイルが無い新しい作業ツリーでは、
+  // scripts/run-mutation.mjs がほかの作業ツリーの最も新しい結果を写して引き継ぐ。
   // 穴: 比べるのは mutate のファイルとテストファイルだけで、依存パッケージ・設定・mutate のファイルが
-  // import する別のファイルが変わっても気付かず、前回の結果を使い回す。
-  // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI のキャッシュの鍵には
-  // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる
+  // import する別のファイル・テストが import する別のファイル(*.test-helper.ts・*.fixture.ts など)が変わっても
+  // 気付かず、前回の結果を使い回す。前回落とした変異体は、今は生き残るとしても落としたままと数える(J-paku.github.io の実測)。
+  // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す(定期的に走らせる形は後の課題)。
+  // CI も手元も、package-lock.json・この設定・vitest.config.ts が変わっても全部は走らせず、最も新しい結果を引き継ぐ
+  // (2026-10-18、利用者の決定。AGENTS.md の「テスト(4層)」)。
+  // 逆向きの穴(前回の生き残りを使い回し、テストを直しても落ち続ける)は、npm run test:mutation の入口の
+  // scripts/run-mutation.mjs が埋める。走らせる前に結果ファイルから落とせなかった変異体と時間切れを取り除き、毎回測り直させる
+  // (npx stryker run を直接叩くと通らず、時間切れでも落ちない。理由と実測は scripts/run-mutation.mjs の注釈)
   incremental: true,
   incrementalFile: 'reports/stryker-incremental.json',
   tempDirName: '.stryker-tmp',

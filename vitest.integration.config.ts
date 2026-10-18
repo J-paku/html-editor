@@ -154,14 +154,13 @@ export default defineConfig({
       exclude: COVERAGE_EXCLUDE,
       reporter: ['text-summary'],
       reportsDirectory: 'coverage/integration',
-      // 2026-10-17の実測(statements 20%・branches 100%・functions 20%・lines 22.22%)から2pt引いて切り捨てた値。
-      // 測る対象は src の全部で、統合テストが描かない経路の定義・ローダー・src/lib/(単体の門で100%に固めている)も分母に入るので低く見える。
-      // 目標値ではなく、統合テストを消したり使われないコードを増やしたりしたときに落とすための床。コンテナとフックが増えたら実測から上げる
+      // 2026-10-18の実測(statements 89.78%・branches 79.32%・functions 90.94%・lines 91.42%)から2pt引いて切り捨てた値。
+      // 目標値ではなく、統合テストを消したり使われないコードを増やしたりして大きく落ちたときに止めるための床。ファイルが増えたら実測から取り直す
       thresholds: {
-        statements: 0,
-        branches: 0,
-        functions: 0,
-        lines: 0,
+        statements: 87,
+        branches: 77,
+        functions: 88,
+        lines: 89,
         // フックとコンテナのファイル別100%(一覧は上の HOOK_FILES・CONTAINER_FILES)
         ...Object.fromEntries(PER_FILE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },

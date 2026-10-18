@@ -71,15 +71,32 @@ const RULE_CASES = [
   ['src/components/A/hooks/utils/a.ts', false],
 ]
 
-// 2. 実在するファイルの判定(src のたどり方まで含めて見る)。名指しと同じく、実在しないと落とす。
-// 置き場ごとに1つずつ足していく(今あるのは lib だけ)
-const MUST_INCLUDE = ['src/lib/content/read.ts']
-// 外れるべきもの(どちらの門にも入らない): テスト
-const MUST_EXCLUDE = ['src/lib/content/read.test.ts']
+// 2. 実在するファイルの判定(src のたどり方まで含めて見る)。名指しと同じく、実在しないと落とす
+// 含まれるべきもの: lib の直下・lib の下のフォルダ・utils・コンポーネントの utils の直下
+// (utils の下のフォルダはまだ無い。置いたら1つ足す)
+const MUST_INCLUDE = [
+  'src/lib/write-file.ts',
+  'src/lib/content/read.ts',
+  'src/utils/preview-build-srcdoc.ts',
+  'src/components/EditorPage/utils/doc-state.ts',
+]
+// 外れるべきもの(どちらの門にも入らない): テスト・テストの部品・フック・型だけのファイル
+// (テストが読むデータ *.fixture.ts は src にまだ無い。置いたら1つ足す)
+const MUST_EXCLUDE = [
+  'src/lib/content/read.test.ts',
+  'src/lib/fake-file-system.test-helper.ts',
+  'src/components/EditorPage/components/CodeEditor/hooks/use-editor-view.ts',
+  'src/components/EditorPage/utils/types.ts',
+]
 
-// 3. 置き場ごとの変異テストの対象の件数の下限。目標ではなく、規則やたどり方が壊れて大きく減ったときに落とすための床。
+// 3. 置き場ごとの変異テストの対象の件数の下限。2026-10-18 の実測は lib 6・utils 14・components 13 で、
+// 下限はそれぞれその約 2/3 を切り捨てた数(67%・64%・62%)。目標ではなく、規則やたどり方が壊れて大きく減ったときに落とすための床。
 // 置き場にファイルが増えたら、実測から下限を上げる
-const FLOORS = [['src/lib/', 1]]
+const FLOORS = [
+  ['src/lib/', 4],
+  ['src/utils/', 9],
+  ['src/components/', 8],
+]
 
 // 4. types.ts は型だけのファイルとして名前で外す。名前だけで外すと、そこへ関数や定数を書いても門の外に残るので、
 // 置き場の中の types.ts に値の宣言(関数・定数・クラス・enum)が無いかを中身で確かめる。

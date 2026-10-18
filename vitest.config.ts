@@ -53,14 +53,13 @@ export default defineConfig({
       ],
       reporter: ['text-summary'],
       reportsDirectory: 'coverage',
-      // 2026-10-17の実測(statements 33.33%・branches 100%・functions 33.33%・lines 20%)から2pt引いて切り捨てた値。
-      // 測る対象は src の全部(フックと components の .tsx を除く)で、単体テストの無い src/app/ の経路の定義も分母に入るので低く見える。
-      // 目標値ではなく、テストを消したり使われないコードを増やしたりしたときに落とすための床。純粋モジュールが増えたら実測から上げる
+      // 2026-10-18の実測(statements 99.07%・branches 100%・functions 98.61%・lines 98.89%)から2pt引いて切り捨てた値。
+      // 目標値ではなく、テストを消したり使われないコードを増やしたりして大きく落ちたときに止めるための床。ファイルが増えたら実測から取り直す
       thresholds: {
-        statements: 31,
+        statements: 97,
         branches: 98,
-        functions: 31,
-        lines: 18,
+        functions: 96,
+        lines: 96,
         // ファイル別100%(一覧は scripts/gate-targets.mjs の COVERAGE_TARGETS)
         ...Object.fromEntries(COVERAGE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },

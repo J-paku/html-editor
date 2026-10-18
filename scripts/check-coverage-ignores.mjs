@@ -26,8 +26,6 @@
 // このリポジトリにはまだ注釈が1つも無いので、最初の注釈を足すときに同じ確かめ方で一度落とす。
 //
 // 見るのは作業ツリーの src(check-test-boundary.mjs と同じ)。名指しされた spec は git の追跡を確かめてから作業ツリーの中身を読む。
-// 追跡されている spec が1件も無いこと(最初のコミットの前など)だけでは落とさない。注釈が名指しする spec が追跡されていなければ、
-// その注釈が REASON_SPEC で落ちるので、注釈の無い間は spec の一覧を使わない。
 // spec のテストの名前は TypeScript の構文木から集める(注釈・文字列の中の test( は数えない)。
 // 判定の関数が壊れて違反を見逃すようになっていないかは、走るたびに最初に確かめる(下の「自己検査」)。
 //
@@ -328,11 +326,10 @@ const codeFiles = (existsSync(SRC_DIR) ? walk(SRC_DIR) : [])
   .filter(file => CODE_FILE.test(file))
   .sort()
 
-// 1件も拾えないときは、違反が無いのではなく見る場所を間違えている。
-// 追跡されている spec の件数は落とす理由にしない(冒頭の注釈。注釈が名指しする spec が無ければ、その注釈が落ちる)
-if (codeFiles.length === 0) {
+// 1件も拾えないときは、違反が無いのではなく見る場所を間違えている
+if (codeFiles.length === 0 || trackedSpecs.size === 0) {
   console.error(
-    `check-coverage-ignores: src のファイル ${codeFiles.length} 件。対象の指定を疑うこと`
+    `check-coverage-ignores: src のファイル ${codeFiles.length} 件・追跡されている spec ${trackedSpecs.size} 件。対象の指定を疑うこと`
   )
   process.exit(1)
 }

@@ -48,6 +48,15 @@ export const strings: Strings = {
     discardWarning: 'ディスクの内容を読み込むと、今の未保存の変更は失われます。',
     cancel: 'キャンセル',
   },
+  restoreDialog: {
+    title: '前回の編集内容が残っています',
+    description: '保存せずに閉じた内容が一時保管されています。復元して編集を続けますか？',
+    pathsLabel: '復元するファイル',
+    diskChangedWarning:
+      '一時保管した後に、元のファイルが変更されています。復元後、保存する前に内容を確認してください。',
+    restore: '復元する',
+    discard: '一時保管した内容を破棄',
+  },
   editor: {
     codeLabel: 'コードの編集欄',
     previewTitle: 'HTMLのプレビュー',

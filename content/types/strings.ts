@@ -9,6 +9,7 @@ export type Strings = {
   toolbar: ToolbarStrings
   fileList: FileListStrings
   conflictDialog: ConflictDialogStrings
+  restoreDialog: RestoreDialogStrings
   editor: EditorStrings
   notice: NoticeStrings
 }
@@ -57,6 +58,15 @@ export type ConflictDialogStrings = {
   loadDisk: string
   discardWarning: string
   cancel: string
+}
+
+export type RestoreDialogStrings = {
+  title: string
+  description: string
+  pathsLabel: string
+  diskChangedWarning: string
+  restore: string
+  discard: string
 }
 
 // 編集器の画面の中の名前のうち、どの表示部品のものでもないもの

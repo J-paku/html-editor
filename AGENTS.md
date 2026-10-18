@@ -3,7 +3,7 @@
 このリポジトリで作業するコードエージェント(Claude Code / Codex / Cursor / Gemini CLIなど)の入口。
 
 AIが作ったHTMLをブラウザの中で直す静的な道具`html-editor`の作業場。配信先は`https://j-paku.github.io/html-editor/`(GitHub Pagesのプロジェクトページ)。
-Next.js 16(App Router)の静的エクスポートで、サーバもデータベースも無い。何を作るかの正本は[docs/design.md](docs/design.md)(承認済みの設計文書の写し)。
+Next.js 16(App Router)の静的エクスポートで、サーバもデータベースも無い。何を作るかの正本は[docs/design.md](docs/design.md)(承認済みの設計文書から写し、今はこちらを更新し続ける。リポジトリの外にある原本はもう更新しない)。
 
 **人はコードを読んでレビューしない。** 代わりに制約(テスト・検査)を極端に多く置き、すべて通ったものを信頼する。「完了」はレビューではなく、すべての門を通ったことで言う。
 テストと画面の作りはJ-paku.github.io(ポートフォリオ)と同じ形にしてある。
@@ -27,19 +27,20 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 
 ## 置き場
 
-| 置き場                       | 置くもの                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `src/app/`                   | 経路の定義だけ。画面の本体は持たない                                                                                           |
-| `src/components/EditorPage/` | 画面は1つ。`index.tsx`はサーバのローダー(contentの読み出しだけ)、`container.tsx`が画面を組み立てる                             |
-| `src/components/<Name>/`     | フォルダ名はPascalCase、中のファイル名はkebab-case。Propsの型は入口のファイルに書く                                            |
-| `src/hooks/`                 | 2か所以上のコンテナが使うフック                                                                                                |
-| `src/lib/`                   | 外の世界に触れる入口(ファイル・IndexedDB・contentの読み出し)                                                                   |
-| `src/utils/`                 | 純粋関数・定数                                                                                                                 |
-| `src/styles/tokens.css`      | 色の定義                                                                                                                       |
-| `content/`                   | 表示文字列(型は`content/types/`)                                                                                               |
-| `__tests__/`                 | 統合テスト(`*.integration.test.tsx`)・統合テストだけが使う部品(`*.test-helper.ts`)・単位フォルダの直下の`container.fixture.ts` |
-| `tests/`                     | E2E(`*.spec.ts`)。ビルド結果(`out/`)でしか確かめられないものだけ                                                               |
-| `src/**/*.test.ts`(対象の隣) | 単体テスト(純粋関数と`src/lib/`)                                                                                               |
+| 置き場                              | 置くもの                                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `src/app/`                          | 経路の定義だけ。画面の本体は持たない                                                                                           |
+| `src/components/EditorPage/`        | 画面は1つ。`index.tsx`はサーバのローダー(contentの読み出しだけ)、`container.tsx`が画面を組み立てる                             |
+| `src/components/<Name>/`            | フォルダ名はPascalCase、中のファイル名はkebab-case。Propsの型は入口のファイルに書く                                            |
+| `src/hooks/`                        | 2か所以上のコンテナが使うフック                                                                                                |
+| `src/lib/`                          | 外の世界に触れる入口(ファイル・IndexedDB・contentの読み出し)                                                                   |
+| `src/utils/`                        | 純粋関数・定数                                                                                                                 |
+| `src/styles/tokens.css`             | 色の定義                                                                                                                       |
+| `content/`                          | 表示文字列(型は`content/types/`)                                                                                               |
+| `__tests__/`                        | 統合テスト(`*.integration.test.tsx`)・統合テストだけが使う部品(`*.test-helper.ts`)・単位フォルダの直下の`container.fixture.ts` |
+| `tests/`                            | E2E(`*.spec.ts`)。ビルド結果(`out/`)でしか確かめられないものだけ                                                               |
+| `src/**/*.test.ts`(対象の隣)        | 単体テスト(純粋関数と`src/lib/`)                                                                                               |
+| `src/**/*.test-helper.ts`(対象の隣) | 単体テストだけが使う部品(`src/lib/`の単体テストが使う偽のフォルダ・偽の`indexedDB`など)                                        |
 
 バレルを作らない(`from '.'`・`from '..'`はESLintが落とす)。
 
@@ -52,7 +53,8 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 | 変異(Stryker)             | `stryker.config.mjs`           | 単体と同じ対象                                  | 生き残りの変異体0(`break` 100)。既定は変わった変異体だけ(incremental)              |
 | E2E(Playwright)           | `playwright.config.ts`         | `tests/**/*.spec.ts`                            | `out/`を`/html-editor/`の下で配って開く(既定`:4317`、`E2E_PORT`で変更)             |
 
-- モックはネットワークと時間だけ。断定は利用者に見えるもの(role・名前・文字)で行う
+- 統合テストのモックはネットワークと時間だけ(ファイルを選ぶ窓だけは自動テストが押せないので、ブラウザの中の保存場所(OPFS)のフォルダを返す形に差し替える)。断定は利用者に見えるもの(role・名前・文字)で行う
+- `src/lib/`の単体テスト(node)は、ブラウザの入口(File System Accessのピッカー・`indexedDB`)を`vi.stubGlobal`で差し替え、ファイルとフォルダのハンドルは偽物(`src/**/*.test-helper.ts`)を渡して測る
 - 時間帯はUTCに固定する(`TZ=UTC`と、統合テストのブラウザの`timezoneId`)
 - **新しい検査は必ず一度落とす。** 修正を外す・期待値を反転するのどちらかでPASS → FAILが動くのを見てから採る
 

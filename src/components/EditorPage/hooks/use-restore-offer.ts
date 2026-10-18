@@ -4,12 +4,14 @@
 // 問いをまた見せる。答えが出るまで(破棄なら消し終えるまで)、問いのファイルの下書きは書き換えも消しもしない(held)。
 // 問いは、それを持ちかけた開き方のもの(../utils/tie-opening.ts)。プロジェクトを閉じるか別のものを開くと画面から消え、
 // 前の開き方のために遅れて届いた答えは捨てる
-import { useMemo, useState, type Dispatch } from 'react'
+import { useMemo, useRef, useState, type Dispatch } from 'react'
 import { clearDrafts, listDrafts } from '@/lib/store-draft'
 import {
   dismissedOf,
+  hasAskedEdits,
   heldPathsOf,
   offerStateOf,
+  reaskedOf,
   shownOfferOf,
   type OfferState,
   type RestoreOffer,
@@ -27,14 +29,17 @@ export function useRestoreOffer(
   report: Report
 ) {
   const [kept, setKept] = useState<ForOpening<OfferState> | null>(null)
+  // 最後に下書きを探した開き方。それより前の開き方への答えは遅すぎるので捨てる
+  const latest = useRef<symbol | null>(null)
   const state = valueForOpening(kept, current)
   const offer = shownOfferOf(state, current)
   const held = useMemo(() => heldPathsOf(state), [state])
 
   // 開いたばかりのセッションの下書きを探す。読めなければ、問いを出さずにプロジェクトを開いたままにする
   const check = (opened: Session) => {
+    latest.current = opened.openId
     listDrafts(opened.projectKey).then(drafts => {
-      setKept(offerStateOf(opened, drafts))
+      if (latest.current === opened.openId) setKept(offerStateOf(opened, drafts))
     }, report('draftFailed'))
   }
 
@@ -53,7 +58,15 @@ export function useRestoreOffer(
       .finally(() => setKept(previous => dropKept(previous, discarding)))
   }
 
+  // プロジェクトを閉じる前に呼ぶ。閉じた問いのファイルに保存していない変更があれば、その変更は下書きに残せないので、
+  // 閉じずに問いをもう一度見せる。見せたかを返す
+  const keepsEdits = (session: Session) => {
+    if (!hasAskedEdits(state, session)) return false
+    setKept(reaskedOf)
+    return true
+  }
+
   useEscapeKey(offer !== null, () => setKept(previous => dismissedOf(previous, current)))
 
-  return { offer, held, check, restore, discard }
+  return { offer, held, check, restore, discard, keepsEdits }
 }

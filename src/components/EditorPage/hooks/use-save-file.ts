@@ -3,7 +3,7 @@
 // 保存した時点の文字が変わったのを見て、下書きの自動保存(./use-draft-autosave.ts)が消す。
 // 保存の動作・問い・保存中かは、それを始めた開き方のもの(../utils/tie-opening.ts)。プロジェクトを閉じるか別のものを
 // 開いた後にディスクが答えても、今の開き方の文字・問い・保存のボタンは変えない
-import { useState, type Dispatch } from 'react'
+import { useLayoutEffect, useRef, useState, type Dispatch } from 'react'
 import type { NoticeKind } from '@content/types/strings'
 import { readFingerprint, readProjectFile } from '@/lib/read-project'
 import { ensureWritePermission } from '@/lib/request-permission'
@@ -28,6 +28,11 @@ export function useSaveFile(
   const [saving, setSaving] = useState<ForOpening<true> | null>(null)
   // ディスクの版が変わっていたファイル。衝突の問いが何をするか尋ねている間
   const [conflict, setConflict] = useState<ForOpening<string> | null>(null)
+  // 最後に描いたセッションの開き方(最初の画面ではnull)。描いた後に届くディスクの答えが、今の開き方のものかを見る
+  const openNow = useRef<symbol | null>(null)
+  useLayoutEffect(() => {
+    openNow.current = current?.openId ?? null
+  })
   const conflictPath = valueForOpening(conflict, current)
 
   // sessionの1歩を走らせる。途中の失敗はkindとして知らせる
@@ -51,7 +56,7 @@ export function useSaveFile(
   }
 
   // 書く許可を求めてから(ブラウザが落としていることがある)、ディスクがまだ今の文字のもとの版のときだけ書く。
-  // そうでなければ衝突の問いを開く
+  // そうでなければ衝突の問いを開く(その開き方が今も開いているときだけ)
   const save = (session: Session) =>
     run(session, 'writeFailed', async () => {
       const file = activeFileOf(session)
@@ -61,7 +66,7 @@ export function useSaveFile(
       }
       if (isUnchangedOnDisk(await readFingerprint(file.handle), baseFingerprintOf(file))) {
         await write(session, file)
-      } else {
+      } else if (openNow.current === session.openId) {
         setConflict(forOpening(session, file.path))
       }
     })

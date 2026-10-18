@@ -10,17 +10,20 @@ import {
   data,
   dialog,
   draftTexts,
+  fileAt,
   focusStaysIn,
   makeFolder,
   notice,
   openFolderFromStart,
   removeAt,
   resetStorage,
+  stubFilePicker,
   stubFolderPicker,
   strings,
   textAt,
   typeAtEnd,
   unsavedMark,
+  withPendingPermission,
   writeAt,
 } from './editor-page.test-helper'
 
@@ -99,6 +102,62 @@ describe('saving a file that changed on disk', () => {
     await expect.element(codeBox()).toHaveTextContent(/^<p>a<\/p>X$/)
     await expect.element(unsavedMark()).toBeVisible()
     expect(await textAt(folder, 'index.html')).toBe('<p>changed outside</p>')
+  })
+
+  it('does not ask in the next opening when the project was closed before the disk answered', async () => {
+    const folder = await makeFolder('site', { 'index.html': '<p>a</p>' })
+    stubFolderPicker(folder)
+    render(<EditorPageContainer {...data} />)
+    await openFolderFromStart()
+    await typeAtEnd('X')
+    // 下書きを残してあるので、最初の画面へ戻るのに待つものは無い
+    await expect.poll(() => draftTexts('folder:site')).toEqual({ 'index.html': '<p>a</p>X' })
+    await changedOutside(folder)
+
+    // 2つを続けて押す。プロジェクトが閉じるとき、保存はまだディスクに尋ねている
+    for (const name of [strings.toolbar.save, strings.toolbar.open]) {
+      button(name)
+        .element()
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    }
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    await openFolderFromStart()
+    await userEvent.click(button(strings.restoreDialog.restore))
+
+    expect(conflictDialog().query()).toBeNull()
+    expect(await textAt(folder, 'index.html')).toBe('<p>changed outside</p>')
+  })
+
+  it('a change found by the save of a project closed before the disk answered leaves the question of the project opened next as it is', async () => {
+    // 1つで開いたファイル。保存はブラウザの許可の確認に利用者が答えるのを待つ
+    const one = await makeFolder('one', { 'index.html': '<p>a</p>' })
+    const { handle, grant } = withPendingPermission(await fileAt(one, 'index.html'))
+    stubFilePicker(handle)
+    render(<EditorPageContainer {...data} />)
+    await userEvent.click(button(strings.startScreen.openFile))
+    await expect.element(codeBox()).toBeVisible()
+    await typeAtEnd('X')
+    await userEvent.click(button(strings.toolbar.save))
+    await userEvent.click(button(strings.toolbar.open))
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    // 次に開いたフォルダの同じパスのファイルで、保存が衝突を尋ねる
+    const two = await makeFolder('two', { 'index.html': '<p>b</p>' })
+    stubFolderPicker(two)
+    await openFolderFromStart()
+    await typeAtEnd('Y')
+    await changedOutside(two)
+    await userEvent.click(button(strings.toolbar.save))
+    await expect.element(conflictDialog()).toBeVisible()
+
+    // 前のプロジェクトの保存が進み、そのファイルもディスクで変わっているのを見つける
+    await writeAt(one, 'index.html', '<p>changed outside one</p>')
+    grant()
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    await expect.element(conflictDialog()).toBeVisible()
+    await userEvent.click(button(strings.conflictDialog.overwrite))
+    await expect.poll(() => textAt(two, 'index.html')).toBe('<p>b</p>Y')
+    expect(await textAt(one, 'index.html')).toBe('<p>changed outside one</p>')
   })
 
   it('overwrite writes my text over the disk version', async () => {

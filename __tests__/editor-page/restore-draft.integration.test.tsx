@@ -17,6 +17,7 @@ import {
   holdDraftStore,
   leaveFullscreen,
   makeFolder,
+  mendDraftStore,
   notice,
   openFolderFromStart,
   resetStorage,
@@ -95,6 +96,46 @@ describe('keeping drafts', () => {
     await expect.poll(() => draftTexts('folder:site')).toEqual({})
   })
 
+  it('going back to the start screen keeps the waiting edit at once, so opening again offers it', async () => {
+    render(<EditorPageContainer {...data} />)
+    await openFolderFromStart()
+    await typeAtEnd('Z')
+    const release = await holdDraftStore()
+
+    await userEvent.click(button(strings.toolbar.open))
+
+    // 書き込みを止めている間は、まだ閉じない
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(button(strings.startScreen.openFolder).query()).toBeNull()
+    await expect.element(codeBox()).toHaveTextContent(/^<p>a<\/p>Z$/)
+
+    await release()
+
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    expect(await draftTexts('folder:site')).toEqual({ 'index.html': '<p>a</p>Z' })
+    await openFolderFromStart()
+    await expect.element(restoreDialog()).toHaveTextContent('index.html')
+  })
+
+  it('while going back waits for the write, the code editor takes no input, so what was on the screen is what is kept', async () => {
+    render(<EditorPageContainer {...data} />)
+    await openFolderFromStart()
+    await typeAtEnd('Z')
+    const release = await holdDraftStore()
+    await userEvent.click(button(strings.toolbar.open))
+
+    // 待っている間に、利用者がコード窓へ戻って入力を続けようとする
+    ;(codeBox().element() as HTMLElement).focus()
+    await userEvent.keyboard('Q')
+    const shown = codeBox().element().textContent
+
+    await release()
+
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    expect(shown).toBe('<p>a</p>Z')
+    expect(await draftTexts('folder:site')).toEqual({ 'index.html': shown })
+  })
+
   it('after a write failed, moving the cursor or selecting writes nothing and tells nothing again', async () => {
     await breakDraftStore()
     render(<EditorPageContainer {...data} />)
@@ -113,6 +154,44 @@ describe('keeping drafts', () => {
     // 下書きはまだ書けないまま: 文字を変えれば、また書こうとして知らせる
     await userEvent.keyboard('Y')
     await expect.element(notice()).toHaveTextContent(strings.notice.messages.draftFailed)
+  })
+
+  it('with every file saved, going back to the start screen works even when the drafts cannot be kept', async () => {
+    await breakDraftStore()
+    render(<EditorPageContainer {...data} />)
+    await openFolderFromStart()
+    await typeAtEnd('Z')
+    await userEvent.click(button(strings.toolbar.save))
+    await expect.poll(() => textAt(folder, 'index.html')).toBe('<p>a</p>Z')
+    await expect.element(unsavedMark()).not.toBeInTheDocument()
+
+    await userEvent.click(button(strings.toolbar.open))
+
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+  })
+
+  it('when the waiting edit cannot be kept, going back to the start screen keeps the project open and tells so; pressing again later keeps it and goes back', async () => {
+    // 最初から壊しておくので、どの書き込みも通らない(開いたときに下書きを探すのも失敗し、知らせる)
+    await breakDraftStore()
+    render(<EditorPageContainer {...data} />)
+    await openFolderFromStart()
+    await expect.element(notice()).toHaveTextContent(strings.notice.messages.draftFailed)
+    await userEvent.click(button(strings.notice.dismiss))
+    await typeAtEnd('Z')
+
+    await userEvent.click(button(strings.toolbar.open))
+
+    await expect.element(notice()).toHaveTextContent(strings.notice.messages.closeBlocked)
+    await expect.element(codeBox()).toHaveTextContent(/^<p>a<\/p>Z$/)
+    // 予定していた書き込みが後から失敗して、理由の知らせを置き換えることはない
+    await waitPastDraftDelay()
+    await expect.element(notice()).toHaveTextContent(strings.notice.messages.closeBlocked)
+
+    await mendDraftStore()
+    await userEvent.click(button(strings.toolbar.open))
+
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    expect(await draftTexts('folder:site')).toEqual({ 'index.html': '<p>a</p>Z' })
   })
 
   it('leaving the page keeps the waiting edit at once; a tab still in sight waits as before', async () => {
@@ -240,6 +319,22 @@ describe('offering drafts back', () => {
     expect(restoreDialog().query()).toBeNull()
   })
 
+  it('going back to the start screen with an unsaved edit in a file of the closed question asks again instead of dropping the edit', async () => {
+    await editAndKeep()
+    await reopen()
+    await userEvent.keyboard('{Escape}')
+    await typeAtEnd('Q')
+    await expect.element(restoreDialog()).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(restoreDialog()).not.toBeInTheDocument()
+
+    await userEvent.click(button(strings.toolbar.open))
+
+    await expect.element(restoreDialog()).toBeVisible()
+    await expect.element(codeBox()).toHaveTextContent(/^<p>a<\/p>Q$/)
+    expect(await draftTexts('folder:site')).toEqual({ 'index.html': '<p>a</p>X' })
+  })
+
   it('a question that opens while the preview is on the whole screen leaves the whole screen first, so it can be seen and answered', async () => {
     await editAndKeep()
     cleanup()
@@ -256,6 +351,26 @@ describe('offering drafts back', () => {
     await expect.element(button(strings.restoreDialog.restore)).toHaveFocus()
     await userEvent.click(button(strings.restoreDialog.restore))
     await expect.element(codeBox()).toHaveTextContent(/^<p>a<\/p>X$/)
+  })
+
+  it('drafts found for a project closed before the answer came offer nothing in the project opened next', async () => {
+    await editAndKeep()
+    cleanup()
+    render(<EditorPageContainer {...data} />)
+    const release = await holdDraftStore()
+    await openFolderFromStart()
+    // 書くのを待つものは無いので、すぐに戻る
+    await userEvent.click(button(strings.toolbar.open))
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    stubFolderPicker(await makeFolder('other', { 'index.html': '<p>o</p>' }))
+    await openFolderFromStart()
+
+    await release()
+
+    // 道具の2つの読み出しの後に並んだ読み出しが返れば、どちらの答えも届いている
+    await draftTexts('folder:site')
+    expect(restoreDialog().query()).toBeNull()
+    await expect.element(codeBox()).toHaveTextContent(/^<p>o<\/p>$/)
   })
 
   it('restoring shows the kept text as unsaved, leaves the file on disk alone, and can be undone', async () => {

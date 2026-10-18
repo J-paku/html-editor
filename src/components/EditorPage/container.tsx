@@ -14,6 +14,7 @@ import PreviewFrame from './components/PreviewFrame'
 import RestoreDialog from './components/RestoreDialog'
 import StartScreen from './components/StartScreen'
 import Toolbar from './components/Toolbar'
+import { useCloseProject } from './hooks/use-close-project'
 import { useDialogFocus } from './hooks/use-dialog-focus'
 import { useDraftAutosave } from './hooks/use-draft-autosave'
 import { useFileAccessSupport } from './hooks/use-file-access'
@@ -41,7 +42,8 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
   const restoreOffer = useRestoreOffer(session, dispatch, report)
   const opener = useOpenProject(dispatch, report, restoreOffer.check)
   const saver = useSaveFile(session, dispatch, report)
-  useDraftAutosave(session, report, restoreOffer.held)
+  const flushDrafts = useDraftAutosave(session, report, restoreOffer.held)
+  const closer = useCloseProject(session, dispatch, report, flushDrafts, restoreOffer.keepsEdits)
   const { offer } = restoreOffer
   const { conflictPath } = saver
   const isAsking = conflictPath !== null || offer !== null
@@ -75,8 +77,8 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
 
   return (
     <main className={styles.page}>
-      {/* 問いの窓が尋ねている間は、後ろの画面は焦点・クリック・キーを受けない(窓はモーダル) */}
-      <div inert={isAsking}>
+      {/* 問いの窓が尋ねている間と、閉じる前に下書きを書くのを待つ間は、後ろの画面は焦点・クリック・キーを受けない(窓はモーダル) */}
+      <div inert={isAsking || closer.closing}>
         <EditorLayout
           strings={strings.editorLayout}
           toolbar={
@@ -84,14 +86,14 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
               strings={strings.toolbar}
               projectName={session.name}
               hasUnsavedChanges={hasUnsavedChanges}
-              openDisabled
+              openDisabled={false}
               saveDisabled={saver.saving || !isDirty(active.doc, active.savedDoc)}
               undoDisabled={!canUndo(active.doc)}
               redoDisabled={!canRedo(active.doc)}
               presentDisabled={srcdoc === undefined}
               modeDisabled
               mode='edit'
-              onOpen={ignoreChange}
+              onOpen={() => closer.close(session)}
               onSave={() => saver.save(session)}
               onUndo={() => dispatch({ type: 'undone' })}
               onRedo={() => dispatch({ type: 'redone' })}

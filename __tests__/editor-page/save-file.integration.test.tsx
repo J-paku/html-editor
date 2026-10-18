@@ -8,6 +8,7 @@ import {
   button,
   codeBox,
   data,
+  dialog,
   draftTexts,
   fileAt,
   makeFolder,
@@ -20,6 +21,7 @@ import {
   textAt,
   typeAtEnd,
   unsavedMark,
+  withPendingPermission,
 } from './editor-page.test-helper'
 
 beforeEach(resetStorage)
@@ -113,5 +115,56 @@ describe('saving', () => {
     expect(await textAt(folder, 'page.html')).toBe('<p>a</p>')
     await expect.element(unsavedMark()).toBeVisible()
     await expect.element(saveButton()).toBeEnabled()
+  })
+})
+
+describe('a save that finishes after its project was closed', () => {
+  // 1つで開いたファイルを保存し(ブラウザの許可の確認に利用者が答えるのを待つ)、答える前に閉じて、同じパスのファイルを
+  // 持つフォルダを開く
+  const saveThenOpenAnother = async () => {
+    const one = await makeFolder('one', { 'index.html': '<p>a</p>' })
+    const two = await makeFolder('two', { 'index.html': '<p>b</p>' })
+    const { handle, grant } = withPendingPermission(await fileAt(one, 'index.html'))
+    stubFilePicker(handle)
+    render(<EditorPageContainer {...data} />)
+    await userEvent.click(button(strings.startScreen.openFile))
+    await expect.element(codeBox()).toBeVisible()
+    await typeAtEnd('X')
+    await userEvent.click(saveButton())
+    await expect.element(saveButton()).toBeDisabled()
+    await userEvent.click(button(strings.toolbar.open))
+    await expect.element(button(strings.startScreen.openFolder)).toBeVisible()
+    stubFolderPicker(two)
+    await openFolderFromStart()
+    await expect.element(codeBox()).toHaveTextContent(/^<p>b<\/p>$/)
+    // 前のプロジェクトの保存を終わらせる(利用者が許可し、ファイルが書かれる)
+    const finish = async () => {
+      grant()
+      await expect.poll(() => textAt(one, 'index.html')).toBe('<p>a</p>X')
+    }
+    return { two, finish }
+  }
+
+  it('changes nothing in the project opened next, which has a file at the same path', async () => {
+    const { two, finish } = await saveThenOpenAnother()
+
+    await finish()
+
+    expect(unsavedMark().query()).toBeNull()
+    await typeAtEnd('Y')
+    await userEvent.click(saveButton())
+    await expect.poll(() => textAt(two, 'index.html')).toBe('<p>b</p>Y')
+    expect(dialog(strings.conflictDialog.title).query()).toBeNull()
+  })
+
+  it('does not switch off the save button of the project opened next', async () => {
+    const { two, finish } = await saveThenOpenAnother()
+
+    await typeAtEnd('Y')
+
+    await expect.element(saveButton()).toBeEnabled()
+    await userEvent.click(saveButton())
+    await expect.poll(() => textAt(two, 'index.html')).toBe('<p>b</p>Y')
+    await finish()
   })
 })

@@ -2,9 +2,70 @@
  * デザイントークン — 色の定義はこのファイルだけに置く(AGENTS.mdの不変ルール5)。
  * ほかのCSSはvar(--color-...)で参照し、色のリテラル(#rrggbb・rgb()・hsl())を書かない。
  * 半透明が要るときはcolor-mix(in srgb, var(--color-...) 97%, transparent)の形でトークンを薄める。
- * 今は土台だけなので、地と文字の2色だけを置く。
+ * 控えめな中間色に、青緑の操作色と琥珀色の未保存表示を合わせる。
  */
 :root {
-  --color-surface: #ffffff;
-  --color-text: #1f1f1f;
+  color-scheme: light;
+  --color-canvas: #eef1f0;
+  --color-surface: #fafcfb;
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #e6ece9;
+  --color-border: #d0d9d5;
+  --color-border-strong: #85988f;
+  --color-text: #202d28;
+  --color-text-muted: #52665c;
+  --color-accent: #096b58;
+  --color-accent-hover: #075443;
+  --color-on-accent: #ffffff;
+  --color-selection: #dceee6;
+  --color-focus: #087d66;
+  --color-disabled-surface: #e9edeb;
+  --color-disabled-text: #6c7872;
+  --color-warning: #805008;
+  --color-warning-surface: #fff1d5;
+  --color-danger: #a3332d;
+  --color-danger-surface: #fcebe8;
+  --color-scrim: #101b16;
+  --color-shadow: #101b16;
+  --color-code-keyword: #793ca0;
+  --color-code-type: #17628a;
+  --color-code-property: #805219;
+  --color-code-string: #24663e;
+  --color-code-number: #934126;
+  --color-code-comment: #68736e;
+  --color-code-meta: #68558f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-canvas: #111715;
+    --color-surface: #18201c;
+    --color-surface-raised: #202a25;
+    --color-surface-hover: #2c3b33;
+    --color-border: #36473d;
+    --color-border-strong: #6f8879;
+    --color-text: #e5ede8;
+    --color-text-muted: #a7b9ae;
+    --color-accent: #78d9b4;
+    --color-accent-hover: #9be8ca;
+    --color-on-accent: #11291f;
+    --color-selection: #244536;
+    --color-focus: #8beac4;
+    --color-disabled-surface: #242e28;
+    --color-disabled-text: #819589;
+    --color-warning: #edc274;
+    --color-warning-surface: #3c301d;
+    --color-danger: #ffaaa0;
+    --color-danger-surface: #462b27;
+    --color-scrim: #080e0b;
+    --color-shadow: #080e0b;
+    --color-code-keyword: #d5a6f2;
+    --color-code-type: #8dcced;
+    --color-code-property: #edc584;
+    --color-code-string: #a3d69a;
+    --color-code-number: #f0b095;
+    --color-code-comment: #95a59c;
+    --color-code-meta: #c7b4e6;
+  }
 }

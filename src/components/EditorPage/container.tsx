@@ -3,21 +3,24 @@
 // 編集器の画面(I/Oコンテナ。一覧はscripts/container-dirs.mjs)。表示部品を、セッション(開いたプロジェクト、
 // ./utils/reduce-session.ts)と、隣のフックを通した外の世界につなぐ。開く・閉じる、保存と衝突の選択、IndexedDBの下書きと
 // その復元、離れるときの警告、プレビュー、全画面の表示、問いの窓の焦点。それぞれの変化の決まりは./utilsの純粋関数にある
-import { useReducer } from 'react'
+import { useId, useReducer } from 'react'
 import type { Strings } from '@content/types/strings'
 import CodeEditor from './components/CodeEditor/container'
+import ConflictDialog from './components/ConflictDialog'
 import EditorLayout from './components/EditorLayout'
 import FileList from './components/FileList'
 import Notice from './components/Notice'
 import PreviewFrame from './components/PreviewFrame'
 import StartScreen from './components/StartScreen'
 import Toolbar from './components/Toolbar'
+import { useDialogFocus } from './hooks/use-dialog-focus'
 import { useFileAccessSupport } from './hooks/use-file-access'
 import { useNotice } from './hooks/use-notice'
 import { useOpenProject } from './hooks/use-open-project'
 import { usePresent } from './hooks/use-present'
 import { usePreviewSrcdoc } from './hooks/use-preview-srcdoc'
-import { canRedo, canUndo } from './utils/doc-state'
+import { useSaveFile } from './hooks/use-save-file'
+import { canRedo, canUndo, isDirty } from './utils/doc-state'
 import { ignoreChange } from './utils/ignore-change'
 import { activeFileOf, fileListItemsOf, isSessionDirty } from './utils/read-session'
 import { reduceSession } from './utils/reduce-session'
@@ -32,9 +35,14 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
   const [session, dispatch] = useReducer(reduceSession, null)
   const { notice, report, dismiss } = useNotice()
   const opener = useOpenProject(dispatch, report)
+  const saver = useSaveFile(session, dispatch, report)
+  const { conflictPath } = saver
+  const isAsking = conflictPath !== null
+  const dialogLayer = useDialogFocus(isAsking)
   const hasUnsavedChanges = isSessionDirty(session)
   const srcdoc = usePreviewSrcdoc(session)
   const { target: previewBox, present } = usePresent(report)
+  const conflictTitleId = useId()
 
   const noticeView = notice !== null && (
     <Notice strings={strings.notice} kind={notice} onDismiss={dismiss} />
@@ -58,7 +66,8 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
 
   return (
     <main className={styles.page}>
-      <div>
+      {/* 問いの窓が尋ねている間は、後ろの画面は焦点・クリック・キーを受けない(窓はモーダル) */}
+      <div inert={isAsking}>
         <EditorLayout
           strings={strings.editorLayout}
           toolbar={
@@ -67,14 +76,14 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
               projectName={session.name}
               hasUnsavedChanges={hasUnsavedChanges}
               openDisabled
-              saveDisabled
+              saveDisabled={saver.saving || !isDirty(active.doc, active.savedDoc)}
               undoDisabled={!canUndo(active.doc)}
               redoDisabled={!canRedo(active.doc)}
               presentDisabled={srcdoc === undefined}
               modeDisabled
               mode='edit'
               onOpen={ignoreChange}
-              onSave={ignoreChange}
+              onSave={() => saver.save(session)}
               onUndo={() => dispatch({ type: 'undone' })}
               onRedo={() => dispatch({ type: 'redone' })}
               onPresent={present}
@@ -106,6 +115,19 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
             </div>
           }
         />
+      </div>
+      <div ref={dialogLayer}>
+        {conflictPath !== null && (
+          <ConflictDialog
+            strings={strings.conflictDialog}
+            open
+            titleId={conflictTitleId}
+            filePath={conflictPath}
+            onOverwrite={() => saver.overwrite(session, conflictPath)}
+            onLoadDisk={() => saver.loadDisk(session, conflictPath)}
+            onCancel={saver.cancel}
+          />
+        )}
       </div>
       {noticeView}
     </main>

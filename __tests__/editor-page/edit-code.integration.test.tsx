@@ -55,6 +55,7 @@ describe('editing', () => {
       .element(fileRow('index.html'))
       .toHaveAccessibleName(`index.html ${strings.fileList.unsaved}`)
     await expect.element(fileRow('site.css')).toHaveAccessibleName('site.css')
+    await expect.element(button(strings.toolbar.save)).toBeEnabled()
     await expect.element(undoButton()).toBeEnabled()
   })
 

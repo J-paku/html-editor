@@ -9,11 +9,14 @@ import CodeEditor from './components/CodeEditor/container'
 import EditorLayout from './components/EditorLayout'
 import FileList from './components/FileList'
 import Notice from './components/Notice'
+import PreviewFrame from './components/PreviewFrame'
 import StartScreen from './components/StartScreen'
 import Toolbar from './components/Toolbar'
 import { useFileAccessSupport } from './hooks/use-file-access'
 import { useNotice } from './hooks/use-notice'
 import { useOpenProject } from './hooks/use-open-project'
+import { usePresent } from './hooks/use-present'
+import { usePreviewSrcdoc } from './hooks/use-preview-srcdoc'
 import { canRedo, canUndo } from './utils/doc-state'
 import { ignoreChange } from './utils/ignore-change'
 import { activeFileOf, fileListItemsOf, isSessionDirty } from './utils/read-session'
@@ -30,6 +33,8 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
   const { notice, report, dismiss } = useNotice()
   const opener = useOpenProject(dispatch, report)
   const hasUnsavedChanges = isSessionDirty(session)
+  const srcdoc = usePreviewSrcdoc(session)
+  const { target: previewBox, present } = usePresent(report)
 
   const noticeView = notice !== null && (
     <Notice strings={strings.notice} kind={notice} onDismiss={dismiss} />
@@ -65,14 +70,14 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
               saveDisabled
               undoDisabled={!canUndo(active.doc)}
               redoDisabled={!canRedo(active.doc)}
-              presentDisabled
+              presentDisabled={srcdoc === undefined}
               modeDisabled
               mode='edit'
               onOpen={ignoreChange}
               onSave={ignoreChange}
               onUndo={() => dispatch({ type: 'undone' })}
               onRedo={() => dispatch({ type: 'redone' })}
-              onPresent={ignoreChange}
+              onPresent={present}
               onModeChange={ignoreChange}
             />
           }
@@ -92,8 +97,12 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
             />
           }
           preview={
-            <div className={styles.preview}>
-              <p className={styles.noPreview}>{strings.editor.noPreview}</p>
+            <div ref={previewBox} className={styles.preview}>
+              {srcdoc === undefined ? (
+                <p className={styles.noPreview}>{strings.editor.noPreview}</p>
+              ) : (
+                <PreviewFrame srcdoc={srcdoc} title={strings.editor.previewTitle} />
+              )}
             </div>
           }
         />

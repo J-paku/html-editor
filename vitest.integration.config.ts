@@ -34,8 +34,10 @@ if (CONTAINER_FIXTURES.length === 0) {
 const HOOK_FILES = globSync('src/**/hooks/**/*.{ts,tsx}', { cwd: ROOT })
   .map(file => file.split(path.sep).join('/'))
   .sort()
-// フックはまだ1つも無い(編集器の機能を作る前の土台)。J-paku.github.io はフックが0個なら設定を読む時点で落とすが、
-// ここでは0個を許す。最初のフックを置いたら、0個を落とす検査に戻す(パターンや起点の誤りで門が黙って空になるのを止めるため)
+// 1 つも拾えないと門が黙って空になる。パターンや起点の誤りを、設定を読む時点で止める
+if (HOOK_FILES.length === 0) {
+  throw new Error(`src の下の hooks フォルダにフックが 1 つも見つからない(探した起点: ${ROOT})`)
+}
 const CONTAINER_FILES = globSync('src/**/container.tsx', { cwd: ROOT })
   .map(file => file.split(path.sep).join('/'))
   .sort()

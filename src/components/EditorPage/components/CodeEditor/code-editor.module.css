@@ -1,0 +1,160 @@
+/* コード窓の大きさ・字形・配色。色の定義は src/styles/tokens.css を参照する */
+
+/* 親が決めた高さいっぱいに広がり、はみ出した分は CodeMirror の中でスクロールする */
+.root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.root :global(.cm-editor) {
+  height: 100%;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.root :global(.cm-editor.cm-focused) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* CodeMirror の既定の字形(.ͼ1 .cm-scroller)より強い詳細度にする */
+.root :global(.cm-editor .cm-scroller) {
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.root :global(.cm-editor) :global(.cm-gutters) {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.root :global(.cm-editor) :global(.cm-activeLine) {
+  background: color-mix(in srgb, var(--color-selection) 35%, transparent);
+}
+
+.root :global(.cm-editor) :global(.cm-activeLineGutter) {
+  background: var(--color-selection);
+  color: var(--color-text);
+}
+
+.root :global(.cm-editor) :global(.cm-content) {
+  caret-color: var(--color-text);
+}
+
+.root :global(.cm-editor) :global(.cm-cursor),
+.root :global(.cm-editor) :global(.cm-dropCursor) {
+  border-left-color: var(--color-text);
+}
+
+.root :global(.cm-editor) :global(.cm-selectionBackground) {
+  background: color-mix(in srgb, var(--color-selection) 60%, transparent);
+}
+
+/* フォーカス時の既定選択子は5クラス分。後から挿入されても勝つ6クラス分にする */
+.root
+  :global(.cm-editor.cm-focused)
+  > :global(.cm-scroller)
+  > :global(.cm-selectionLayer)
+  :global(.cm-selectionBackground) {
+  background: var(--color-selection);
+}
+
+.root :global(.cm-editor) :global(.cm-content)::selection,
+.root :global(.cm-editor) :global(.cm-content) ::selection {
+  background: var(--color-selection);
+  color: var(--color-text);
+}
+
+.root :global(.cm-editor.cm-focused) :global(.cm-matchingBracket) {
+  background: var(--color-selection);
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.root :global(.cm-editor.cm-focused) :global(.cm-nonmatchingBracket) {
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  text-decoration: underline wavy;
+}
+
+.root :global(.cm-editor) :global(.tok-keyword),
+.root :global(.cm-editor) :global(.tok-operator) {
+  color: var(--color-code-keyword);
+}
+
+.root :global(.cm-editor) :global(.tok-typeName),
+.root :global(.cm-editor) :global(.tok-namespace),
+.root :global(.cm-editor) :global(.tok-className),
+.root :global(.cm-editor) :global(.tok-heading) {
+  color: var(--color-code-type);
+}
+
+.root :global(.cm-editor) :global(.tok-propertyName),
+.root :global(.cm-editor) :global(.tok-labelName) {
+  color: var(--color-code-property);
+}
+
+.root :global(.cm-editor) :global(.tok-string),
+.root :global(.cm-editor) :global(.tok-inserted) {
+  color: var(--color-code-string);
+}
+
+.root :global(.cm-editor) :global(.tok-atom),
+.root :global(.cm-editor) :global(.tok-bool),
+.root :global(.cm-editor) :global(.tok-literal),
+.root :global(.cm-editor) :global(.tok-number) {
+  color: var(--color-code-number);
+}
+
+.root :global(.cm-editor) :global(.tok-variableName),
+.root :global(.cm-editor) :global(.tok-punctuation),
+.root :global(.cm-editor) :global(.tok-emphasis),
+.root :global(.cm-editor) :global(.tok-strong),
+.root :global(.cm-editor) :global(.tok-strikethrough) {
+  color: var(--color-text);
+}
+
+.root :global(.cm-editor) :global(.tok-meta),
+.root :global(.cm-editor) :global(.tok-macroName),
+.root :global(.cm-editor) :global(.tok-string2),
+.root :global(.cm-editor) :global(.tok-variableName2) {
+  color: var(--color-code-meta);
+}
+
+.root :global(.cm-editor) :global(.tok-comment) {
+  color: var(--color-code-comment);
+  font-style: italic;
+}
+
+.root :global(.cm-editor) :global(.tok-url),
+.root :global(.cm-editor) :global(.tok-link) {
+  color: var(--color-code-type);
+  text-decoration: underline;
+}
+
+.root :global(.cm-editor) :global(.tok-deleted),
+.root :global(.cm-editor) :global(.tok-invalid) {
+  color: var(--color-danger);
+}
+
+.root :global(.cm-editor) :global(.tok-invalid) {
+  text-decoration: underline wavy;
+}
+
+.root :global(.cm-editor) :global(.tok-heading),
+.root :global(.cm-editor) :global(.tok-strong),
+.root :global(.cm-editor) :global(.tok-definition) {
+  font-weight: 600;
+}
+
+.root :global(.cm-editor) :global(.tok-emphasis) {
+  font-style: italic;
+}
+
+.root :global(.cm-editor) :global(.tok-strikethrough) {
+  text-decoration: line-through;
+}

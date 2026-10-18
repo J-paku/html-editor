@@ -107,6 +107,15 @@ export default defineConfig({
       __NEXT_ROUTER_BASEPATH: nextConfig.basePath,
     }),
   },
+  // テストの側が読む依存のうち、走らせ始める時の Vite の走査に頼らず先に束ねておくもの
+  // (idb-keyval は src/lib/store-draft.ts と __tests__/editor-page/editor-page.test-helper.ts、react-dom/server は
+  // __tests__/editor-page/start-screen.integration.test.tsx が読む)。走査が拾わないまま走らせている途中で見つけると、
+  // Vite が束ね直してテストを読み込み直し、React と CodeMirror が2つずつ読まれる。2026-10-18 の実測では、
+  // react-dom/server を読むテストを置く前に作った .vite のキャッシュのまま全部を走らせると、12ファイル59件がすべて落ちた。
+  // include はキャッシュの指紋に入るので、ここに挙げた依存はキャッシュをいつ作ったかに依らず最初から束ねられる
+  optimizeDeps: {
+    include: ['idb-keyval', 'react-dom/server'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

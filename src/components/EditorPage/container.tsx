@@ -11,15 +11,18 @@ import EditorLayout from './components/EditorLayout'
 import FileList from './components/FileList'
 import Notice from './components/Notice'
 import PreviewFrame from './components/PreviewFrame'
+import RestoreDialog from './components/RestoreDialog'
 import StartScreen from './components/StartScreen'
 import Toolbar from './components/Toolbar'
 import { useDialogFocus } from './hooks/use-dialog-focus'
+import { useDraftAutosave } from './hooks/use-draft-autosave'
 import { useFileAccessSupport } from './hooks/use-file-access'
 import { useLeaveWarning } from './hooks/use-leave-warning'
 import { useNotice } from './hooks/use-notice'
 import { useOpenProject } from './hooks/use-open-project'
 import { usePresent } from './hooks/use-present'
 import { usePreviewSrcdoc } from './hooks/use-preview-srcdoc'
+import { useRestoreOffer } from './hooks/use-restore-offer'
 import { useSaveFile } from './hooks/use-save-file'
 import { canRedo, canUndo, isDirty } from './utils/doc-state'
 import { ignoreChange } from './utils/ignore-change'
@@ -35,16 +38,20 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
   const isSupported = useFileAccessSupport()
   const [session, dispatch] = useReducer(reduceSession, null)
   const { notice, report, dismiss } = useNotice()
-  const opener = useOpenProject(dispatch, report)
+  const restoreOffer = useRestoreOffer(session, dispatch, report)
+  const opener = useOpenProject(dispatch, report, restoreOffer.check)
   const saver = useSaveFile(session, dispatch, report)
+  useDraftAutosave(session, report, restoreOffer.held)
+  const { offer } = restoreOffer
   const { conflictPath } = saver
-  const isAsking = conflictPath !== null
+  const isAsking = conflictPath !== null || offer !== null
   const dialogLayer = useDialogFocus(isAsking)
   const hasUnsavedChanges = isSessionDirty(session)
   useLeaveWarning(hasUnsavedChanges)
   const srcdoc = usePreviewSrcdoc(session)
   const { target: previewBox, present } = usePresent(report)
   const conflictTitleId = useId()
+  const restoreTitleId = useId()
 
   const noticeView = notice !== null && (
     <Notice strings={strings.notice} kind={notice} onDismiss={dismiss} />
@@ -128,6 +135,17 @@ function EditorPageContainer({ strings }: EditorPageContainerProps) {
             onOverwrite={() => saver.overwrite(session, conflictPath)}
             onLoadDisk={() => saver.loadDisk(session, conflictPath)}
             onCancel={saver.cancel}
+          />
+        )}
+        {offer !== null && (
+          <RestoreDialog
+            strings={strings.restoreDialog}
+            open
+            titleId={restoreTitleId}
+            filePaths={offer.drafts.map(draft => draft.path)}
+            hasDiskChanges={offer.hasDiskChanges}
+            onRestore={() => restoreOffer.restore(offer)}
+            onDiscard={() => restoreOffer.discard(session, offer)}
           />
         )}
       </div>

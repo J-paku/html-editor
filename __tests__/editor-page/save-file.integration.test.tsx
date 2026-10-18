@@ -8,6 +8,7 @@ import {
   button,
   codeBox,
   data,
+  draftTexts,
   fileAt,
   makeFolder,
   notice,
@@ -78,6 +79,19 @@ describe('saving', () => {
     await expect.element(saveButton()).toBeDisabled()
 
     expect(line?.isConnected).toBe(true)
+  })
+
+  it('drops the draft of the saved file', async () => {
+    const folder = await makeFolder('site', { 'index.html': '<p>a</p>' })
+    stubFolderPicker(folder)
+    render(<EditorPageContainer {...data} />)
+    await openFolderFromStart()
+    await typeAtEnd('X')
+    await expect.poll(() => draftTexts('folder:site')).toEqual({ 'index.html': '<p>a</p>X' })
+
+    await userEvent.click(saveButton())
+
+    await expect.poll(() => draftTexts('folder:site')).toEqual({})
   })
 
   it('tells the user when write permission is refused, and leaves the file and the edit as they were', async () => {

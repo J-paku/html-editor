@@ -1,5 +1,6 @@
 // 問いの窓(衝突の問い・復元の問い)の焦点と全画面の扱い。返すrefは窓を入れる要素に付ける。
-//   - 窓が開いたら、data-initial-focusの付いた操作に焦点を置く
+//   - 窓が開いたら、data-initial-focusの付いた操作に焦点を置く。全画面なら先に全画面を出てから置く(全画面の要素は窓の後ろの
+//     入力を受けない所にあり、窓は全画面の外で見えない。全画面の間は、その外の要素は焦点を受けない)
 //   - 開いている間、TabとShift+Tabは窓の中の操作を回る(最後の次は最初、最初の前は最後。後ろの画面やページの外へ出ない)
 //   - 閉じたら、開く前に焦点があった要素へ焦点を戻す(その要素がまだ画面にあるとき)
 import { useEffect, useRef } from 'react'
@@ -25,7 +26,8 @@ export function useDialogFocus(open: boolean) {
     if (!open) return
     const box = layer.current as HTMLDivElement
     const focusInitial = () => (box.querySelector('[data-initial-focus]') as HTMLElement).focus()
-    focusInitial()
+    if (document.fullscreenElement === null) focusInitial()
+    else document.exitFullscreen().then(focusInitial, focusInitial)
     const wrap = (event: KeyboardEvent) => {
       if (event.key !== 'Tab') return
       const controls = box.querySelectorAll<HTMLElement>(FOCUSABLE)

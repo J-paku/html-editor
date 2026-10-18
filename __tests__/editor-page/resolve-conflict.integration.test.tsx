@@ -9,6 +9,7 @@ import {
   codeBox,
   data,
   dialog,
+  draftTexts,
   focusStaysIn,
   makeFolder,
   notice,
@@ -112,12 +113,14 @@ describe('saving a file that changed on disk', () => {
 
   it('taking the disk version shows it, drops my edit and its draft, and leaves the disk as it is', async () => {
     const folder = await editThenSave({ 'index.html': '<p>a</p>' }, changedOutside)
+    await expect.poll(() => draftTexts('folder:site')).toEqual({ 'index.html': '<p>a</p>X' })
 
     await userEvent.click(button(strings.conflictDialog.loadDisk))
 
     await expect.element(codeBox()).toHaveTextContent(/^<p>changed outside<\/p>$/)
     expect(unsavedMark().query()).toBeNull()
     expect(await textAt(folder, 'index.html')).toBe('<p>changed outside</p>')
+    await expect.poll(() => draftTexts('folder:site')).toEqual({})
   })
 
   it('cancel closes the question and keeps my edit unsaved', async () => {

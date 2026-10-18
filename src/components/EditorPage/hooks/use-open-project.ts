@@ -8,9 +8,15 @@ import { projectKeyOf } from '@/utils/encode-draft'
 import { toSessionFile } from '../utils/load-file'
 import type { SessionAction } from '../utils/reduce-session'
 import { openSession } from '../utils/start-session'
+import type { Session } from '../utils/types'
 import type { Report } from './use-notice'
 
-export function useOpenProject(dispatch: Dispatch<SessionAction>, report: Report) {
+export function useOpenProject(
+  dispatch: Dispatch<SessionAction>,
+  report: Report,
+  // 開いたばかりのセッションで呼ぶ(その下書きを探すため)
+  onOpened: (session: Session) => void
+) {
   const open = async (pick: () => Promise<OpenedProject | null>) => {
     try {
       const project = await pick()
@@ -22,6 +28,7 @@ export function useOpenProject(dispatch: Dispatch<SessionAction>, report: Report
         return
       }
       dispatch({ type: 'opened', session })
+      onOpened(session)
     } catch {
       report('openFailed')()
     }

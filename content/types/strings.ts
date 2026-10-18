@@ -4,7 +4,15 @@ export type Strings = {
   lang: string
   // 画面の見出しと、文書の題名(<title>)
   title: string
+  editorLayout: EditorLayoutStrings
   startScreen: StartScreenStrings
+  fileList: FileListStrings
+}
+
+export type EditorLayoutStrings = {
+  files: string
+  code: string
+  preview: string
 }
 
 export type StartScreenStrings = {
@@ -15,4 +23,11 @@ export type StartScreenStrings = {
   localNote: string
   unsupportedTitle: string
   unsupportedDescription: string
+}
+
+export type FileListStrings = {
+  title: string
+  empty: string
+  unsaved: string
+  notEditable: string
 }

@@ -6,6 +6,11 @@ import type { Strings } from './types/strings'
 export const strings: Strings = {
   lang: 'ja',
   title: 'html-editor',
+  editorLayout: {
+    files: 'ファイル一覧',
+    code: 'コード',
+    preview: 'プレビュー',
+  },
   startScreen: {
     productName: 'html-editor',
     description: 'HTMLを開いて、直して、そのまま見せる。',
@@ -15,5 +20,11 @@ export const strings: Strings = {
     unsupportedTitle: 'ChromeかEdgeで開いてください',
     unsupportedDescription:
       'このブラウザは、フォルダを開いて元のファイルに保存する機能に対応していません。パソコンのChromeかEdgeをご利用ください。',
+  },
+  fileList: {
+    title: 'ファイル',
+    empty: 'ファイルがありません',
+    unsaved: '未保存',
+    notEditable: '編集できないファイル',
   },
 }

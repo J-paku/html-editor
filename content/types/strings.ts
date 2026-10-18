@@ -4,4 +4,15 @@ export type Strings = {
   lang: string
   // 画面の見出しと、文書の題名(<title>)
   title: string
+  startScreen: StartScreenStrings
+}
+
+export type StartScreenStrings = {
+  productName: string
+  description: string
+  openFolder: string
+  openFile: string
+  localNote: string
+  unsupportedTitle: string
+  unsupportedDescription: string
 }

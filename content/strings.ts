@@ -40,6 +40,11 @@ export const strings: Strings = {
     unsaved: '未保存',
     notEditable: '編集できないファイル',
   },
+  editor: {
+    codeLabel: 'コードの編集欄',
+    previewTitle: 'HTMLのプレビュー',
+    noPreview: 'プレビューできるHTMLファイルがありません。',
+  },
   notice: {
     dismiss: '閉じる',
     messages: {

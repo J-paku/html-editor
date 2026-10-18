@@ -8,6 +8,7 @@ export type Strings = {
   startScreen: StartScreenStrings
   toolbar: ToolbarStrings
   fileList: FileListStrings
+  editor: EditorStrings
   notice: NoticeStrings
 }
 
@@ -46,6 +47,16 @@ export type FileListStrings = {
   empty: string
   unsaved: string
   notEditable: string
+}
+
+// 編集器の画面の中の名前のうち、どの表示部品のものでもないもの
+export type EditorStrings = {
+  // コード窓の書き込み欄のアクセシブルな名前
+  codeLabel: string
+  // プレビューのiframeのアクセシブルな名前(title)
+  previewTitle: string
+  // プロジェクトに走らせるHTMLのファイルが無いとき、プレビューの場所に出す
+  noPreview: string
 }
 
 // エディタが知らせる失敗ごとの、1つの短い知らせ

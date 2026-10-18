@@ -68,7 +68,14 @@ export const buildPreviewSrcdoc = (
 
   // ファイルの中身の参照を置き換えたもの(HTML と CSS)、またはそのままの中身(ほかの種類)。
   // chain は書き換えている途中のファイルの並びで、外側から順に並ぶ。その中のファイルへ戻る参照は書かれたままにする。
-  // これで循環(a.css が b.css を読み、b.css が a.css を読む)が止まり、同じファイルへの参照(#id)も触らずに済む
+  // これで循環(a.css が b.css を読み、b.css が a.css を読む)が止まり、同じファイルへの参照(#id)も触らずに済む。
+  // 再帰が終わることは、条件式の正しさではなく形で決まる(変異テストで式を壊しても終わる。AGENTS.md の「テスト(4層)」)。
+  // - 深く入るのはフォルダの中にあって chain に無いファイルだけで、入るたびに chain がそのファイルの分だけ伸びる。
+  //   chain は違うファイルの並びのままなので、深さはフォルダのファイルの数を超えない
+  //   (中身を引けないまま入る変異体は、中身を空の文字として読むか投げるので、その先へは入らない)
+  // - chain を伸ばすのは concat で、[...chain, path] と書かない。配列の式は変異で [] になり、chain が伸びずに循環が止まらない
+  // - chain の中かは、if の条件ではなく、中身を引く式の三項演算子の条件で見る。if の条件は変異で false になって
+  //   chain を見なくなるが、三項演算子の条件(関数の呼び出し)は変異の対象に無い
   const rewrite = (
     path: string,
     content: string | Uint8Array,
@@ -76,11 +83,11 @@ export const buildPreviewSrcdoc = (
   ): string | Uint8Array => {
     const replace = (reference: string): string | undefined => {
       const target = resolvePreviewPath(path, reference)
-      if (target === undefined || chain.includes(target.path)) return undefined
-      const found = contents.get(target.path)
+      if (target === undefined) return undefined
+      const found = chain.includes(target.path) ? undefined : contents.get(target.path)
       if (found === undefined) return undefined
       const encoded = dataUrlOf(
-        rewrite(target.path, found, [...chain, target.path]),
+        rewrite(target.path, found, chain.concat(target.path)),
         contentTypeOf(target.path)
       )
       return `${encoded}${target.fragment}`
